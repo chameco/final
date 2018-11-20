@@ -16,6 +16,7 @@ dependencies:
 - base
 - text
 - bytestring
+- binary
 - mtl
 - safe-exceptions
 - time

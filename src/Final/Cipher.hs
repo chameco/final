@@ -2,14 +2,14 @@
 
 module Final.Cipher
   ( Implementation(..)
-  , Cipher, Impl, impl
+  , Cipher, EncryptionKey, DecryptionKey, Plaintext, Ciphertext, Impl, impl
   , Lookup(..)
   , encryptWith, decryptWith
   ) where
 
 import Data.Kind
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as BS
 import Data.Text (Text)
 
 data Implementation (a :: Type) (e :: Type) (d :: Type) (p :: Type) (c :: Type) = Implementation
