@@ -29,13 +29,13 @@ parseEncryptionKey = parseEncryptionKey_ implementation
 parseDecryptionKey :: Cipher a => ByteString -> DecryptionKey a
 parseDecryptionKey = parseDecryptionKey_ implementation
 
-data CipherMap :: Type where
-  None :: CipherMap
-  Some :: forall (a :: Type) (e :: Type) (d :: Type). Int -> Implementation_ a e d -> CipherMap -> CipherMap
+data CipherMap (k :: Type) :: Type where
+  NoCipher :: Eq k => CipherMap k
+  SomeCipher :: forall (a :: Type) (e :: Type) (d :: Type) (k :: Type). Eq k => k -> Implementation_ a e d -> CipherMap k -> CipherMap k
 
-encryptWith :: CipherMap -> Int -> ByteString -> ByteString -> Maybe ByteString
-encryptWith None _ _ _ = Nothing
-encryptWith (Some i c rest) i' k d
+encryptWith :: Eq k => CipherMap k -> k -> ByteString -> ByteString -> Maybe ByteString
+encryptWith NoCipher _ _ _ = Nothing
+encryptWith (SomeCipher i c rest) i' k d
   | i == i' = pure $ encrypt_ c (parseEncryptionKey_ c k) d
   | otherwise = encryptWith rest i' k d
 
@@ -63,10 +63,10 @@ instance Cipher IDPKC where
     , parseDecryptionKey_ = const E2
     }
 
-foo :: CipherMap
-foo = Some 1337 (implementation :: Implementation IDSymmetric)
-      . Some 31337 (implementation :: Implementation IDPKC)
-      $ None
+foo :: CipherMap Int
+foo = SomeCipher 1337 (implementation :: Implementation IDSymmetric)
+      . SomeCipher 31337 (implementation :: Implementation IDPKC)
+      $ NoCipher
 
 bar :: Maybe ByteString 
 bar = encryptWith foo 1337 "the key" "hello, world"
