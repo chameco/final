@@ -21,6 +21,7 @@ dependencies:
 - safe-exceptions
 - time
 - network
+- random
 - optparse-applicative
 
 default-extensions:

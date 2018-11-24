@@ -9,13 +9,14 @@ module Final.Cipher
   ( Implementation(..)
   , Cipher, EncryptionKey, DecryptionKey, Plaintext, Ciphertext, Impl, impl
   , Lookup(..)
-  , constructLookup, encryptWithCipher, decryptWithCipher, usingCipher
+  , encryptWithCipher, decryptWithCipher, usingCipher
   ) where
 
 import Data.Kind
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
-import Data.Text (Text)
+
+import System.Random
 
 -- TODO Maybe move ErrorMessage contents to type level?
 type ErrorMessage = ByteString
@@ -24,6 +25,8 @@ type ErrorMessage = ByteString
 data Implementation (a :: Type) (e :: Type) (d :: Type) (p :: Type) (c :: Type) = Implementation
   { encrypt :: e -> p -> c
   , decrypt :: d -> c -> p
+  , generateDecryptionKey :: forall (g :: Type). RandomGen g => g -> d
+  , deriveEncryptionKey :: d -> e
   , parseEncryptionKey :: ByteString -> Either ErrorMessage e
   , parseDecryptionKey :: ByteString -> Either ErrorMessage d
   , parsePlaintext :: ByteString -> Either ErrorMessage p
@@ -32,13 +35,13 @@ data Implementation (a :: Type) (e :: Type) (d :: Type) (p :: Type) (c :: Type) 
   , renderCiphertext :: c -> ByteString
   }
 
+-- | A wrapper to shorten 'Implementation' types
+type Impl a = Implementation a (EncryptionKey a) (DecryptionKey a) (Plaintext a) (Ciphertext a)
+
 -- | Complete crypto-systems with corresponding encryption/decryption keys,
 -- plain/ciphertexts, and implementation.
 class Cipher (a :: Type) where
   -- | The default name of a 'Cipher', should be unique
-  name :: Text
-  _name :: a -> Text
-  _name = const $ name @a
   -- | The encryption key type for a specific 'Cipher'
   type family EncryptionKey a :: Type
   -- | The decryption key type for a specific 'Cipher'
@@ -49,9 +52,6 @@ class Cipher (a :: Type) where
   type family Ciphertext a :: Type
   -- | The concrete 'Implementation' of a cipher
   impl :: Impl a
-
--- | A wrapper to shorten 'Implementation' types
-type Impl a = Implementation a (EncryptionKey a) (DecryptionKey a) (Plaintext a) (Ciphertext a)
 
 -- | A GADT representing a list of 'Cipher's
 data Lookup :: Type -> Type where
@@ -81,7 +81,7 @@ decryptWithCipher cipher k m = fmap (renderPlaintext cipher) $ decrypt cipher <$
 
 -- | Applies the given function to the corresponding cipher if present
 --
--- > (fromJust $ usingCipher foo "IDSymmetric" encryptWithCipher) "the key" "hello, world" == Right "dlrow ,olleh"
+-- > (fromJust $ usingCipher table "IDSymmetric" encryptWithCipher) "the key" "hello, world" == Right "dlrow ,olleh"
 usingCipher :: Eq k => Lookup k -> k -> (forall a. Cipher a => Impl a -> b) -> Maybe b
 usingCipher None _ _ = Nothing
 usingCipher (Some i c rest) i' f
@@ -90,7 +90,6 @@ usingCipher (Some i c rest) i' f
 
 data IDSymmetric
 instance Cipher IDSymmetric where
-  name = "IDSymmetric"
   type EncryptionKey IDSymmetric = ()
   type DecryptionKey IDSymmetric = ()
   type Plaintext IDSymmetric = ByteString
@@ -98,11 +97,13 @@ instance Cipher IDSymmetric where
   impl = Implementation
     { encrypt = const BS.reverse
     , decrypt = const BS.reverse
+    , generateDecryptionKey = const ()
+    , deriveEncryptionKey = id
     , parseEncryptionKey = Right . const ()
     , parseDecryptionKey = Right . const ()
-    , parsePlaintext = Right . id
+    , parsePlaintext = Right
     , renderPlaintext = id
-    , parseCiphertext = Right . id
+    , parseCiphertext = Right
     , renderCiphertext = id
     }
 
@@ -110,7 +111,6 @@ data IDPKC
 data E1 = E1
 data E2 = E2
 instance Cipher IDPKC where
-  name = "IDPKC"
   type EncryptionKey IDPKC = E1
   type DecryptionKey IDPKC = E2
   type Plaintext IDPKC = ByteString
@@ -118,16 +118,12 @@ instance Cipher IDPKC where
   impl = Implementation
     { encrypt = const id
     , decrypt = const id
+    , generateDecryptionKey = const E2
+    , deriveEncryptionKey = const E1
     , parseEncryptionKey = Right . const E1
     , parseDecryptionKey = Right . const E2
-    , parsePlaintext = Right . id
+    , parsePlaintext = Right
     , renderPlaintext = id
-    , parseCiphertext = Right . id
+    , parseCiphertext = Right
     , renderCiphertext = id
     }
-
--- | A helper function to construct a Lookup using the default Cipher name
---
--- > constructLookup @IDPKC None == Lookup "IDPKC" (impl :: Impl IDPKC) None
-constructLookup :: forall a. Cipher a => Lookup Text -> Lookup Text
-constructLookup = Some (name @a) (impl @a)
