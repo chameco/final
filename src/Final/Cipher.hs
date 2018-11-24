@@ -6,12 +6,13 @@ module Final.Cipher
   ( Implementation(..)
   , Cipher, EncryptionKey, DecryptionKey, Plaintext, Ciphertext, Impl, impl
   , Lookup(..)
-  , encryptWithCipher, decryptWithCipher, usingCipher
+  , constructLookup, usingCipher, encryptWithCipher, decryptWithCipher
   ) where
 
 import Data.Kind
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
+import Data.Text (Text)
 
 import System.Random
 
@@ -40,7 +41,6 @@ type Impl a = Implementation a (EncryptionKey a) (DecryptionKey a) (Plaintext a)
 -- | Complete crypto-systems with corresponding encryption/decryption keys,
 -- plain/ciphertexts, and implementation.
 class Cipher (a :: Type) where
-  -- | The default name of a 'Cipher', should be unique
   -- | The encryption key type for a specific 'Cipher'
   type family EncryptionKey a :: Type
   -- | The decryption key type for a specific 'Cipher'
@@ -49,6 +49,8 @@ class Cipher (a :: Type) where
   type family Plaintext a :: Type
   -- | The ciphertext type for a specific 'Cipher'
   type family Ciphertext a :: Type
+  -- | The default name of a 'Cipher', should be unique
+  name :: Text
   -- | The concrete 'Implementation' of a cipher
   impl :: Impl a
 
@@ -61,6 +63,19 @@ data Lookup :: Type -> Type where
 instance Show k => Show (Lookup k) where
   show None = "|"
   show (Some k _ rest) = '|' : show k ++ show rest
+
+-- | A helper function to construct a Lookup using the default Cipher name
+-- > constructLookup @IDPKC None == Lookup "IDPKC" (impl :: Impl IDPKC) None
+constructLookup :: forall a. Cipher a => Lookup Text -> Lookup Text
+constructLookup = Some (name @a) (impl @a)
+
+-- | Applies the given function to the corresponding cipher if present
+-- > (fromJust $ usingCipher table "IDSymmetric" encryptWithCipher) "the key" "hello, world" == Right "dlrow ,olleh"
+usingCipher :: Eq k => Lookup k -> k -> (forall a. Cipher a => Impl a -> b) -> Maybe b
+usingCipher None _ _ = Nothing
+usingCipher (Some i c rest) i' f
+  | i == i' = pure $ f c
+  | otherwise = usingCipher rest i' f
 
 -- | Using the given cipher create an encryption function that parses the given key and message and returns
 -- either an error or the encrypted ByteString
@@ -78,21 +93,13 @@ decryptWithCipher cipher k m = fmap (renderPlaintext cipher) $ decrypt cipher <$
     key = parseDecryptionKey cipher k
     msg = parseCiphertext cipher m
 
--- | Applies the given function to the corresponding cipher if present
---
--- > (fromJust $ usingCipher table "IDSymmetric" encryptWithCipher) "the key" "hello, world" == Right "dlrow ,olleh"
-usingCipher :: Eq k => Lookup k -> k -> (forall a. Cipher a => Impl a -> b) -> Maybe b
-usingCipher None _ _ = Nothing
-usingCipher (Some i c rest) i' f
-  | i == i' = pure $ f c
-  | otherwise = usingCipher rest i' f
-
 data IDSymmetric
 instance Cipher IDSymmetric where
   type EncryptionKey IDSymmetric = ()
   type DecryptionKey IDSymmetric = ()
   type Plaintext IDSymmetric = ByteString
   type Ciphertext IDSymmetric = ByteString
+  name = "IDSymmetric"
   impl = Implementation
     { encrypt = const BS.reverse
     , decrypt = const BS.reverse
@@ -116,6 +123,7 @@ instance Cipher IDPKC where
   type DecryptionKey IDPKC = E2
   type Plaintext IDPKC = ByteString
   type Ciphertext IDPKC = ByteString
+  name = "IDPKC"
   impl = Implementation
     { encrypt = const id
     , decrypt = const id
@@ -130,3 +138,4 @@ instance Cipher IDPKC where
     , parseCiphertext = Right
     , renderCiphertext = id
     }
+
