@@ -1,8 +1,5 @@
 {-# LANGUAGE UndecidableInstances #-}
-
 {-
-Module  : Final.Cipher
-
 This module contains definitions for type-level crypto-systems (symmetric and public).
 -}
 module Final.Cipher
@@ -25,10 +22,12 @@ type ErrorMessage = ByteString
 data Implementation (a :: Type) (e :: Type) (d :: Type) (p :: Type) (c :: Type) = Implementation
   { encrypt :: e -> p -> c
   , decrypt :: d -> c -> p
-  , generateDecryptionKey :: forall (g :: Type). RandomGen g => g -> d
+  , generateDecryptionKey :: forall (g :: Type). RandomGen g => g -> (d, g)
   , deriveEncryptionKey :: d -> e
   , parseEncryptionKey :: ByteString -> Either ErrorMessage e
+  , renderEncryptionKey :: e -> ByteString
   , parseDecryptionKey :: ByteString -> Either ErrorMessage d
+  , renderDecryptionKey :: d -> ByteString
   , parsePlaintext :: ByteString -> Either ErrorMessage p
   , renderPlaintext :: p -> ByteString
   , parseCiphertext :: ByteString -> Either ErrorMessage c
@@ -97,10 +96,12 @@ instance Cipher IDSymmetric where
   impl = Implementation
     { encrypt = const BS.reverse
     , decrypt = const BS.reverse
-    , generateDecryptionKey = const ()
+    , generateDecryptionKey = ((),)
     , deriveEncryptionKey = id
     , parseEncryptionKey = Right . const ()
+    , renderEncryptionKey = undefined
     , parseDecryptionKey = Right . const ()
+    , renderDecryptionKey = undefined
     , parsePlaintext = Right
     , renderPlaintext = id
     , parseCiphertext = Right
@@ -118,10 +119,12 @@ instance Cipher IDPKC where
   impl = Implementation
     { encrypt = const id
     , decrypt = const id
-    , generateDecryptionKey = const E2
+    , generateDecryptionKey = (E2,)
     , deriveEncryptionKey = const E1
     , parseEncryptionKey = Right . const E1
+    , renderEncryptionKey = undefined
     , parseDecryptionKey = Right . const E2
+    , renderDecryptionKey = undefined
     , parsePlaintext = Right
     , renderPlaintext = id
     , parseCiphertext = Right

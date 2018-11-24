@@ -2,8 +2,6 @@ module Final.Cipher.RSA where
 
 import Data.Binary (encode, decode)
 
-import System.Random
-
 import Final.Utility
 import Final.Cipher
 
@@ -16,10 +14,18 @@ instance Cipher RSA where
   impl = Implementation
     { encrypt = \(e, n) m -> modExp m e n
     , decrypt = \(d, p, q) c -> modExp c d (p * q)
-    , generateDecryptionKey = \g -> undefined
-    , deriveEncryptionKey = \(d, p, q) -> (undefined, p * q)
+    , generateDecryptionKey = \gen ->
+        let (p, gen') = genPrimeBits gen 1024
+            (q, gen'') = genPrimeBits gen' 1024
+            (d, gen''') = genCoprime gen'' $ carmichaelTotient p q
+        in if p == q
+           then generateDecryptionKey (impl :: Impl RSA) gen''
+           else ((d, p, q), gen''')
+    , deriveEncryptionKey = \(d, p, q) -> (modInv d $ carmichaelTotient p q, p * q)
     , parseEncryptionKey = decode
+    , renderEncryptionKey = encode
     , parseDecryptionKey = decode
+    , renderDecryptionKey = encode
     , parsePlaintext = decode
     , renderPlaintext = encode
     , parseCiphertext = decode
