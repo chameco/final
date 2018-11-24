@@ -1,12 +1,16 @@
 module Final.Cipher.SDES where
 
 import Control.Arrow
+import Control.Exception.Safe
 
-import Data.Tuple
+import Data.Kind (Type)
+import Data.Char (ord)
+import Data.Tuple (swap)
 import Data.Word (Word8)
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as BS
 
+import Final.Cipher
 import Final.Utility.Natural
 import Final.Utility.Finite
 import Final.Utility.Vector
@@ -78,8 +82,8 @@ inverseInitialPermutation = permuteVector table
         table = Cons f4 . Cons f1 . Cons f3 . Cons f5 . Cons f7 . Cons f2 . Cons f8 $ Cons f6 Empty
 
 -- | Perform SDES given the 8-bit two partial keys.
-doDES :: (Bits Eight, Bits Eight) -> Bits Eight -> Bits Eight
-doDES (k1, k2) = initialPermutation >>> splitVector8 >>> feistel k1 >>> feistel k2 >>> swap >>> uncurry concatVector >>> inverseInitialPermutation
+doSDES :: (Bits Eight, Bits Eight) -> Bits Eight -> Bits Eight
+doSDES (k1, k2) = initialPermutation >>> splitVector8 >>> feistel k1 >>> feistel k2 >>> swap >>> uncurry concatVector >>> inverseInitialPermutation
 
 -- | Compute the two 8-bit partial keys from a full 10-bit key.
 splitKey :: Bits Ten -> (Bits Eight, Bits Eight)
@@ -97,54 +101,57 @@ splitKey key = (first (uncurry concatVector >>> key8Permutation) >>> second (fir
         rotateLeft (Cons b bs) = concatVector bs (Cons b Empty)
 
 -- | Helper for performing encryption of a byte given a 10-bit key.
-encryptDES :: Bits Ten -> Bits Eight -> Bits Eight
-encryptDES = splitKey >>> doDES
+encryptSDES :: Bits Ten -> Bits Eight -> Bits Eight
+encryptSDES = splitKey >>> doSDES
 
 -- | Helper for performing decryption of a byte given a 10-bit key.
-decryptDES :: Bits Ten -> Bits Eight -> Bits Eight
-decryptDES = splitKey >>> swap >>> doDES
+decryptSDES :: Bits Ten -> Bits Eight -> Bits Eight
+decryptSDES = splitKey >>> swap >>> doSDES
 
--- | Convert an 8-bit bit string to a Haskell integer.
-bitsToInt :: Bits Eight -> Int
-bitsToInt bits = go (lengthVector bits - 1) bits
-  where go :: forall (n :: Natural). Int -> Bits n -> Int
+byteToWord8 :: Bits Eight -> Word8
+byteToWord8 bits = go (lengthVector bits - 1) bits
+  where go :: forall (n :: Natural). Int -> Bits n -> Word8
         go _ Empty = 0
         go l (Cons b bs) = (if b then 1 else 0) * 2^l + go (l - 1) bs
 
--- | Convert a Haskell integer to an 8-bit bit string.
--- If the Haskell integer is greater than 255, use the highest 8 bits.
-intToBits :: Int -> Bits Eight
-intToBits = extract . pad . reverse . rep
-  where rep :: Int -> [Bool]
+word8ToByte :: forall (m :: Type -> Type). MonadThrow m => Word8 -> m (Bits Eight)
+word8ToByte = extract . pad . reverse . rep
+  where rep :: Word8 -> [Bool]
         rep 0 = []
         rep n = (rem n 2 == 1):rep (quot n 2)
         pad :: [Bool] -> [Bool]
         pad l | length l >= 8 = l
               | otherwise = pad (False:l)
-        extract :: [Bool] -> Bits Eight
-        extract (b1:b2:b3:b4:b5:b6:b7:b8:_) = Cons b1 . Cons b2 . Cons b3 . Cons b4 . Cons b5 . Cons b6 . Cons b7 $ Cons b8 Empty
-        extract _ = error "Invalid byte"
+        extract :: [Bool] -> m (Bits Eight)
+        extract (b1:b2:b3:b4:b5:b6:b7:b8:_) = pure . Cons b1 . Cons b2 . Cons b3 . Cons b4 . Cons b5 . Cons b6 . Cons b7 $ Cons b8 Empty
+        extract _ = throwString "Invalid byte"
 
--- | Create a 10-bit bitstring (a key) from a Haskell string of '1' and '0'.
-buildKey :: String -> Bits Ten
-buildKey = extract . fmap (=='1')
-  where extract :: [Bool] -> Bits Ten
-        extract (b1:b2:b3:b4:b5:b6:b7:b8:b9:b10:_) = Cons b1 . Cons b2 . Cons b3 . Cons b4 . Cons b5
-                                                     . Cons b6 . Cons b7 . Cons b8 . Cons b9 $ Cons b10 Empty
-        extract _ = error "Invalid key"
+buildKey :: forall (m :: Type -> Type). MonadThrow m => ByteString -> m (Bits Ten)
+buildKey = extract . fmap (== (fromIntegral $ ord '1')) . BS.unpack
+  where extract :: [Bool] -> m (Bits Ten)
+        extract (b1:b2:b3:b4:b5:b6:b7:b8:b9:b10:_) =
+          pure . Cons b1 . Cons b2 . Cons b3 . Cons b4 . Cons b5
+          . Cons b6 . Cons b7 . Cons b8 . Cons b9 $ Cons b10 Empty
+        extract _ = throwString "Invalid key"
 
--- | Encrypt a single byte using the given key.
-encryptByte :: String -> Word8 -> Word8
-encryptByte key = fromIntegral . bitsToInt . encryptDES (buildKey key) . intToBits . fromIntegral
-
--- | Decrypt a single byte using the given key.
-decryptByte :: String -> Word8 -> Word8
-decryptByte key = fromIntegral . bitsToInt . decryptDES (buildKey key) . intToBits . fromIntegral
-
--- | Encrypt an entire bytestring using the given key.
-encryptByteString :: String -> ByteString -> ByteString
-encryptByteString key = BS.map (encryptByte key)
-
--- | Decrypt an entire bytestring using the given key.
-decryptByteString :: String -> ByteString -> ByteString
-decryptByteString key = BS.map (decryptByte key)
+data SDES
+instance Cipher SDES where
+  type EncryptionKey SDES = Bits Ten
+  type DecryptionKey SDES = Bits Ten
+  type Plaintext SDES = [Bits Eight]
+  type Ciphertext SDES = [Bits Eight]
+  name = "SDES"
+  impl = Implementation
+    { encrypt = \k m -> encryptSDES k <$> m
+    , decrypt = \k c -> decryptSDES k <$> c
+    , generateDecryptionKey = undefined
+    , deriveEncryptionKey = id
+    , parseEncryptionKey = buildKey
+    , renderEncryptionKey = undefined
+    , parseDecryptionKey = buildKey
+    , renderDecryptionKey = undefined
+    , parsePlaintext = mapM word8ToByte . BS.unpack
+    , renderPlaintext = BS.pack . fmap byteToWord8
+    , parseCiphertext = mapM word8ToByte . BS.unpack
+    , renderCiphertext = BS.pack . fmap byteToWord8
+    }
