@@ -9,6 +9,8 @@ module Final.Cipher
   , constructLookup, usingCipher, encryptWithCipher, decryptWithCipher
   ) where
 
+import Control.Exception.Safe
+
 import Data.Kind
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
@@ -16,22 +18,19 @@ import Data.Text (Text)
 
 import System.Random
 
--- TODO Maybe move ErrorMessage contents to type level?
-type ErrorMessage = ByteString
-
 -- | An implementation of a @Cipher a@ with @EncryptionKey e@, @DecryptionKey d@, @Plaintext p@, and @Ciphertext c@
 data Implementation (a :: Type) (e :: Type) (d :: Type) (p :: Type) (c :: Type) = Implementation
   { encrypt :: e -> p -> c
   , decrypt :: d -> c -> p
   , generateDecryptionKey :: forall (g :: Type). RandomGen g => g -> (d, g)
   , deriveEncryptionKey :: d -> e
-  , parseEncryptionKey :: ByteString -> Either ErrorMessage e
+  , parseEncryptionKey :: forall (m :: Type -> Type). MonadThrow m => ByteString -> m e
   , renderEncryptionKey :: e -> ByteString
-  , parseDecryptionKey :: ByteString -> Either ErrorMessage d
+  , parseDecryptionKey :: forall (m :: Type -> Type). MonadThrow m => ByteString -> m d
   , renderDecryptionKey :: d -> ByteString
-  , parsePlaintext :: ByteString -> Either ErrorMessage p
+  , parsePlaintext :: forall (m :: Type -> Type). MonadThrow m => ByteString -> m p
   , renderPlaintext :: p -> ByteString
-  , parseCiphertext :: ByteString -> Either ErrorMessage c
+  , parseCiphertext :: forall (m :: Type -> Type). MonadThrow m => ByteString -> m c
   , renderCiphertext :: c -> ByteString
   }
 
@@ -66,7 +65,7 @@ instance Show k => Show (Lookup k) where
 
 -- | A helper function to construct a Lookup using the default Cipher name
 -- > constructLookup @IDPKC None == Lookup "IDPKC" (impl :: Impl IDPKC) None
-constructLookup :: forall a. Cipher a => Lookup Text -> Lookup Text
+constructLookup :: forall (a :: Type). Cipher a => Lookup Text -> Lookup Text
 constructLookup = Some (name @a) (impl @a)
 
 -- | Applies the given function to the corresponding cipher if present
@@ -79,7 +78,7 @@ usingCipher (Some i c rest) i' f
 
 -- | Using the given cipher create an encryption function that parses the given key and message and returns
 -- either an error or the encrypted ByteString
-encryptWithCipher :: Cipher a => Impl a -> ByteString -> ByteString -> Either ErrorMessage ByteString
+encryptWithCipher :: forall (a :: Type) (m :: Type -> Type). (Cipher a, MonadThrow m) => Impl a -> ByteString -> ByteString -> m ByteString
 encryptWithCipher cipher k m = fmap (renderCiphertext cipher) $ encrypt cipher <$> key <*> msg
   where
     key = parseEncryptionKey cipher k
@@ -87,7 +86,7 @@ encryptWithCipher cipher k m = fmap (renderCiphertext cipher) $ encrypt cipher <
 
 -- | Using the given cipher create an decryption function that parses the given key and message and returns
 -- either an error or the decrypted ByteString
-decryptWithCipher :: Cipher a => Impl a -> ByteString -> ByteString -> Either ErrorMessage ByteString
+decryptWithCipher :: forall (a :: Type) (m :: Type -> Type). (Cipher a, MonadThrow m) => Impl a -> ByteString -> ByteString -> m ByteString
 decryptWithCipher cipher k m = fmap (renderPlaintext cipher) $ decrypt cipher <$> key <*> msg
   where
     key = parseDecryptionKey cipher k
@@ -105,13 +104,13 @@ instance Cipher IDSymmetric where
     , decrypt = const BS.reverse
     , generateDecryptionKey = ((),)
     , deriveEncryptionKey = id
-    , parseEncryptionKey = Right . const ()
+    , parseEncryptionKey = pure . const ()
     , renderEncryptionKey = undefined
-    , parseDecryptionKey = Right . const ()
+    , parseDecryptionKey = pure . const ()
     , renderDecryptionKey = undefined
-    , parsePlaintext = Right
+    , parsePlaintext = pure
     , renderPlaintext = id
-    , parseCiphertext = Right
+    , parseCiphertext = pure
     , renderCiphertext = id
     }
 
@@ -129,13 +128,13 @@ instance Cipher IDPKC where
     , decrypt = const id
     , generateDecryptionKey = (E2,)
     , deriveEncryptionKey = const E1
-    , parseEncryptionKey = Right . const E1
+    , parseEncryptionKey = pure . const E1
     , renderEncryptionKey = undefined
-    , parseDecryptionKey = Right . const E2
+    , parseDecryptionKey = pure . const E2
     , renderDecryptionKey = undefined
-    , parsePlaintext = Right
+    , parsePlaintext = pure
     , renderPlaintext = id
-    , parseCiphertext = Right
+    , parseCiphertext = pure
     , renderCiphertext = id
     }
 
