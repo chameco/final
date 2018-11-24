@@ -2,8 +2,9 @@ module Final.Cipher.RSA where
 
 import Data.Binary (encode)
 
-import Final.Utility
 import Final.Cipher
+import Final.Utility.Modular
+import Final.Utility.Prime
 
 data RSA
 instance Cipher RSA where

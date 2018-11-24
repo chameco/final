@@ -1,13 +1,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module Final.Utility.Types where
+module Final.Utility.Natural where
 
 import Data.Kind (Type)
-
-data Bit :: Type where
-  Off :: Bit
-  On :: Bit
-  deriving (Show, Eq)
 
 data Natural :: Type where
   Zero :: Natural
@@ -39,9 +34,5 @@ type Five = 'Successor Four
 type Six = 'Successor Five
 type Seven = 'Successor Six
 type Eight = 'Successor Seven
-
-data Finite :: Natural -> Type where
-  One :: forall (n :: Natural). Finite ('Successor n)
-  Also :: forall (n :: Natural). Finite n -> Finite ('Successor n)
-deriving instance forall (n :: Natural). Show (Finite n)
-deriving instance forall (n :: Natural). Eq (Finite n)
+type Nine = 'Successor Eight
+type Ten = 'Successor Nine
