@@ -4,7 +4,7 @@ This module contains definitions for type-level crypto-systems (symmetric and pu
 -}
 module Final.Cipher
   ( Implementation(..)
-  , Cipher, EncryptionKey, DecryptionKey, Plaintext, Ciphertext, Impl, impl
+  , Cipher, EncryptionKey, DecryptionKey, Plaintext, Ciphertext, Impl, impl, name
   , Lookup(..)
   , constructLookup, usingCipher, encryptWithCipher, decryptWithCipher
   ) where
@@ -62,7 +62,7 @@ data Lookup :: Type -> Type where
 
 instance Show k => Show (Lookup k) where
   show None = "|"
-  show (Some k _ rest) = '|' : show k ++ show rest
+  show (Some k _ rest) = '|' : mconcat [show k, ", ", show rest]
 
 -- | A helper function to construct a Lookup using the default Cipher name
 -- > constructLookup @IDPKC None == Lookup "IDPKC" (impl :: Impl IDPKC) None

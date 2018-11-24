@@ -1,6 +1,6 @@
 module Final.Cipher.RSA where
 
-import Data.Binary (encode, decode)
+import Data.Binary (encode)
 
 import Final.Utility
 import Final.Cipher
@@ -11,6 +11,7 @@ instance Cipher RSA where
   type DecryptionKey RSA = (Integer, Integer, Integer)
   type Plaintext RSA = Integer
   type Ciphertext RSA = Integer
+  name = "RSA"
   impl = Implementation
     { encrypt = \(e, n) m -> modExp m e n
     , decrypt = \(d, p, q) c -> modExp c d (p * q)
@@ -22,12 +23,12 @@ instance Cipher RSA where
            then generateDecryptionKey (impl :: Impl RSA) gen''
            else ((d, p, q), gen''')
     , deriveEncryptionKey = \(d, p, q) -> (modInv d $ carmichaelTotient p q, p * q)
-    , parseEncryptionKey = decode
+    , parseEncryptionKey = undefined
     , renderEncryptionKey = encode
-    , parseDecryptionKey = decode
+    , parseDecryptionKey = undefined
     , renderDecryptionKey = encode
-    , parsePlaintext = decode
+    , parsePlaintext = undefined
     , renderPlaintext = encode
-    , parseCiphertext = decode
+    , parseCiphertext = undefined
     , renderCiphertext = encode
     }
