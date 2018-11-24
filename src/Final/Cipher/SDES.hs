@@ -17,6 +17,8 @@ import Final.Utility.Vector
 import Final.Utility.Bits
 import Final.Utility.Permutation
 
+import System.Random
+
 -- | The initial permutation for SDES.
 initialPermutation :: Bits Eight -> Bits Eight
 initialPermutation = permuteVector table
@@ -134,6 +136,11 @@ buildKey = extract . fmap (== (fromIntegral $ ord '1')) . BS.unpack
           . Cons b6 . Cons b7 . Cons b8 . Cons b9 $ Cons b10 Empty
         extract _ = throwString "Invalid key"
 
+randomBits :: RandomGen g => g -> ([Word8], g)
+randomBits gen = (fromIntegral (ord '0' + x):xs, gen'')
+  where (x, gen') = randomR (0, 1) gen
+        (xs, gen'') = randomBits gen'
+
 data SDES
 instance Cipher SDES where
   type EncryptionKey SDES = Bits Ten
@@ -144,12 +151,16 @@ instance Cipher SDES where
   impl = Implementation
     { encrypt = \k m -> encryptSDES k <$> m
     , decrypt = \k c -> decryptSDES k <$> c
-    , generateDecryptionKey = undefined
+    , generateDecryptionKey = \g ->
+        let (bits, g') = randomBits g
+        in case buildKey . BS.pack $ take 10 bits of
+          Left _ -> error "Unreachable"
+          Right k -> (k, g')
     , deriveEncryptionKey = id
     , parseEncryptionKey = buildKey
-    , renderEncryptionKey = undefined
+    , renderEncryptionKey = showBits
     , parseDecryptionKey = buildKey
-    , renderDecryptionKey = undefined
+    , renderDecryptionKey = showBits
     , parsePlaintext = mapM word8ToByte . BS.unpack
     , renderPlaintext = BS.pack . fmap byteToWord8
     , parseCiphertext = mapM word8ToByte . BS.unpack
