@@ -28,16 +28,26 @@ integerToByteString padding = BS.pack . pad . rep
         pad l | length l >= padding = l
               | otherwise = pad (0:l)
 
+splitEvery :: Int -> ByteString -> [ByteString]
+splitEvery n bs
+  | BS.length bs <= fromIntegral n = [bs]
+  | otherwise = case BS.splitAt (fromIntegral n) bs of (x, rest) -> x:splitEvery n rest
+
+integersToByteStrings :: Int -> [Integer] -> [ByteString]
+integersToByteStrings _ [] = []
+integersToByteStrings _ [x] = [integerToByteString 0 x]
+integersToByteStrings padding (x:xs) = integerToByteString padding x:integersToByteStrings padding xs
+
 data RSA
 instance Cipher RSA where
   type EncryptionKey RSA = (Integer, Integer)
   type DecryptionKey RSA = (Integer, Integer, Integer)
-  type Plaintext RSA = Integer
-  type Ciphertext RSA = Integer
+  type Plaintext RSA = [Integer]
+  type Ciphertext RSA = [Integer]
   name = "RSA"
   impl = Implementation
-    { encrypt = \(e, n) m -> modExp m e n
-    , decrypt = \(d, p, q) c -> modExp c d (p * q)
+    { encrypt = \(e, n) ms -> (\m -> modExp m e n) <$> ms
+    , decrypt = \(d, p, q) cs -> (\c -> modExp c d (p * q)) <$> cs
     , generateDecryptionKey = \gen ->
         let (p, gen') = genPrimeBits gen 1024
             (q, gen'') = genPrimeBits gen' 1024
@@ -60,8 +70,8 @@ instance Cipher RSA where
                                                   , integerToByteString 2048 p
                                                   , integerToByteString 2048 q
                                                   ]
-    , parsePlaintext = pure . byteStringToInteger
-    , renderPlaintext = integerToByteString 0
-    , parseCiphertext = pure . byteStringToInteger
-    , renderCiphertext = integerToByteString 0
+    , parsePlaintext = pure . fmap byteStringToInteger . splitEvery 128
+    , renderPlaintext = mconcat . integersToByteStrings 0
+    , parseCiphertext = pure . fmap byteStringToInteger . splitEvery 2048
+    , renderCiphertext = mconcat . integersToByteStrings 2048
     }
