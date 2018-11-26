@@ -12,6 +12,19 @@
 - Parallelism is a compiler option
 - Good libraries, big integers in standard library
 - Abstraction
+* What's the plan?
+- TLS 1.2 client and server
+- What does this require?
+  - Key exchange
+  - Symmetric cipher
+  - Message authentication
+* TLS
+- Client connects to server
+- "Hello" messages - establish protocol and suggest cipher suite
+- Server sends certificate
+- Key exchange using chosen method
+- "ChangeCipherSpec" messages - all future traffic is encrypted
+- "Finished" messages - verify encrypted channel
 * Status of implementation
 - RSA and SHA-1 implemented fully
 - DH key exchange
@@ -35,8 +48,10 @@
 - Architecture is general enough to support whatever we want, so just having fun at this point.
 - Unsure of how much is expected for the assignment
 * Security considerations
-- Unlikely that we'll implement algorithms for "modern" TLS by the deadline
 - Trying to avoid things that are /really/ easily broken
+- DH for forward secrecy
+- May want to add suppport for semantically-secure RSA via padding
+  - Could abstract this over arbitrary cipher/hash pairs
 * Brute-force attack for any implemented cipher
 - Given a cipher instance and a plaintext-ciphertext pair, finds the key
 - (Eventually)

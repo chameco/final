@@ -31,7 +31,7 @@
 
 <section>
 <section id="slide-sec-">
-<h2 id="org21f6042">Introduction</h2>
+<h2 id="org753de15">Introduction</h2>
 <ul>
 <li>Implementation in Haskell</li>
 <li>Using advanced type-level features to abstract over ciphers and hashes</li>
@@ -41,18 +41,14 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org96fff61">Why Haskell?</h2>
+<h2 id="orge117ba9">Why Haskell?</h2>
 <ul>
 <li>Safety guarantees
 <ul>
 <li>Avoid buffer overflow</li>
 
 </ul></li>
-<li>Trivial parallelism for brute-force
-<ul>
 <li>Parallelism is a compiler option</li>
-
-</ul></li>
 <li>Good libraries, big integers in standard library</li>
 <li>Abstraction</li>
 
@@ -61,7 +57,37 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org9966749">Status of implementation</h2>
+<h2 id="org3355bbf">What's the plan?</h2>
+<ul>
+<li>TLS 1.2 client and server</li>
+<li>What does this require?
+<ul>
+<li>Key exchange</li>
+<li>Symmetric cipher</li>
+<li>Message authentication</li>
+
+</ul></li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="orgcbd07d5">TLS</h2>
+<ul>
+<li>Client connects to server</li>
+<li>"Hello" messages - establish protocol and suggest cipher suite</li>
+<li>Server sends certificate</li>
+<li>Key exchange using chosen method</li>
+<li>"ChangeCipherSpec" messages - all future traffic is encrypted</li>
+<li>"Finished" messages - verify encrypted channel</li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org67f6cea">Status of implementation</h2>
 <ul>
 <li>RSA and SHA-1 implemented fully</li>
 <li>DH key exchange</li>
@@ -73,7 +99,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="orgc0e8bd9">Future implementation plans</h2>
+<h2 id="orgb5b2f34">Future implementation plans</h2>
 <ul>
 <li>ElGamal and ECC (fun, fairly easy)</li>
 <li>A good block cipher (harder)
@@ -84,6 +110,7 @@
 <li>Some PRNGs/stream ciphers
 <ul>
 <li>Using <code>/dev/random</code> for RSA prime generation, Miller-Rabin, etc.</li>
+<li>Probably ChaCha20?</li>
 
 </ul></li>
 <li>Deriving instances of cipher interface automatically for PRNGs</li>
@@ -94,14 +121,14 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org59aad7b">Eventual result</h2>
+<h2 id="orgd73b58e">Eventual result</h2>
 <ul>
-<li>Hopefully a client compatible with SSL 3.0/maybe TLS 1.0 if we're ambitious</li>
+<li>Hopefully a client compatible with TLS 1.2</li>
 <li>Overlap:
 <ul>
 <li>RSA or DH for key exchange</li>
-<li>3DES for cipher</li>
-<li>SHA1 for data integrity</li>
+<li>3DES or ChaCha20 for cipher</li>
+<li>SHA-1 or SHA-256 HMAC for data integrity</li>
 
 </ul></li>
 <li>Architecture is general enough to support whatever we want, so just having fun at this point.</li>
@@ -112,13 +139,13 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="orgcb555df">Security considerations</h2>
+<h2 id="orgbd6b20b">Security considerations</h2>
 <ul>
-<li>Unlikely that we'll implement algorithms for "modern" TLS by the deadline</li>
-<li>Trying to avoid things that are <i>really</i> easily broken
+<li>Trying to avoid things that are <i>really</i> easily broken</li>
+<li>DH for forward secrecy</li>
+<li>May want to add suppport for semantically-secure RSA via padding
 <ul>
-<li>MD5</li>
-<li>RC4</li>
+<li>Could abstract this over arbitrary cipher/hash pairs</li>
 
 </ul></li>
 
@@ -127,7 +154,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org6befd9b">Brute-force attack for any implemented cipher</h2>
+<h2 id="org5016e98">Brute-force attack for any implemented cipher</h2>
 <ul>
 <li>Given a cipher instance and a plaintext-ciphertext pair, finds the key</li>
 <li>(Eventually)</li>
@@ -138,7 +165,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="orgbfaf57e">Examples</h2>
+<h2 id="org63dc7b2">Examples</h2>
 <ul>
 <li>Using an interesting technique to abstract over input/output types of ciphers/hashes.</li>
 <li>Effectively, emulating dependent records with typeclasses and type families.</li>
@@ -147,7 +174,7 @@
 </ul>
 </section>
 <section id="slide-sec-">
-<h3 id="org8910c72">Hashes</h3>
+<h3 id="orgd656836">Hashes</h3>
 <div class="org-src-container">
 
 <pre  class="src src-haskell"><span style="color: #a1db00;">data</span> <span style="color: #00d7af;">Implementation</span> (a <span style="color: #ff8700;">::</span> <span style="color: #00d7af;">Type</span>) (p <span style="color: #ff8700;">::</span> <span style="color: #00d7af;">Type</span>) (h <span style="color: #ff8700;">::</span> <span style="color: #00d7af;">Type</span>) <span style="color: #ff8700;">=</span> <span style="color: #00d7af;">Implementation</span>
@@ -167,7 +194,7 @@
 </div>
 </section>
 <section id="slide-sec-">
-<h3 id="org25bb71f">Lookup tables</h3>
+<h3 id="orgcfba70a">Lookup tables</h3>
 <ul>
 <li>Represented as heterogeneous association lists</li>
 
@@ -182,7 +209,7 @@
 </div>
 </section>
 <section id="slide-sec-">
-<h3 id="org6f54c64">Similar construction for ciphers</h3>
+<h3 id="org20f4c8b">Similar construction for ciphers</h3>
 <ul>
 <li>More elaborate, more types involved
 <ul>
@@ -215,7 +242,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="orgf97e185">Questions?</h2>
+<h2 id="org0b4bfd5">Questions?</h2>
 </section>
 </section>
 </div>
