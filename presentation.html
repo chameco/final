@@ -7,9 +7,9 @@
 <style type="text/css">
 .underline { text-decoration: underline; }
 </style>
-<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/css/reveal.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/reveal.js/3.0.0/css/reveal.css"/>
 
-<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/css/theme/moon.css" id="theme"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/reveal.js/3.0.0/css/theme/moon.css" id="theme"/>
 
 
 <!-- If the query includes 'print-pdf', include the PDF print sheet -->
@@ -18,7 +18,7 @@
         var link = document.createElement( 'link' );
         link.rel = 'stylesheet';
         link.type = 'text/css';
-        link.href = 'http://cdn.jsdelivr.net/reveal.js/3.0.0/css/print/pdf.css';
+        link.href = 'https://cdn.jsdelivr.net/reveal.js/3.0.0/css/print/pdf.css';
         document.getElementsByTagName( 'head' )[0].appendChild( link );
     }
 </script>
@@ -31,7 +31,7 @@
 
 <section>
 <section id="slide-sec-">
-<h2 id="org4ed54e2">Introduction</h2>
+<h2 id="org21f6042">Introduction</h2>
 <ul>
 <li>Implementation in Haskell</li>
 <li>Using advanced type-level features to abstract over ciphers and hashes</li>
@@ -41,7 +41,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org82bf172">Why Haskell?</h2>
+<h2 id="org96fff61">Why Haskell?</h2>
 <ul>
 <li>Safety guarantees
 <ul>
@@ -61,7 +61,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org61127a9">Status of implementation</h2>
+<h2 id="org9966749">Status of implementation</h2>
 <ul>
 <li>RSA and SHA-1 implemented fully</li>
 <li>DH key exchange</li>
@@ -73,7 +73,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org854b546">Future implementation plans</h2>
+<h2 id="orgc0e8bd9">Future implementation plans</h2>
 <ul>
 <li>ElGamal and ECC (fun, fairly easy)</li>
 <li>A good block cipher (harder)
@@ -94,7 +94,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="orgc133495">Eventual result</h2>
+<h2 id="org59aad7b">Eventual result</h2>
 <ul>
 <li>Hopefully a client compatible with SSL 3.0/maybe TLS 1.0 if we're ambitious</li>
 <li>Overlap:
@@ -112,7 +112,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org4f0de78">Security considerations</h2>
+<h2 id="orgcb555df">Security considerations</h2>
 <ul>
 <li>Unlikely that we'll implement algorithms for "modern" TLS by the deadline</li>
 <li>Trying to avoid things that are <i>really</i> easily broken
@@ -127,7 +127,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org9904597">Brute-force attack for any implemented cipher</h2>
+<h2 id="org6befd9b">Brute-force attack for any implemented cipher</h2>
 <ul>
 <li>Given a cipher instance and a plaintext-ciphertext pair, finds the key</li>
 <li>(Eventually)</li>
@@ -138,7 +138,7 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org5fad9d0">Examples</h2>
+<h2 id="orgbfaf57e">Examples</h2>
 <ul>
 <li>Using an interesting technique to abstract over input/output types of ciphers/hashes.</li>
 <li>Effectively, emulating dependent records with typeclasses and type families.</li>
@@ -147,7 +147,7 @@
 </ul>
 </section>
 <section id="slide-sec-">
-<h3 id="org6f47b1d">Hashes</h3>
+<h3 id="org8910c72">Hashes</h3>
 <div class="org-src-container">
 
 <pre  class="src src-haskell"><span style="color: #a1db00;">data</span> <span style="color: #00d7af;">Implementation</span> (a <span style="color: #ff8700;">::</span> <span style="color: #00d7af;">Type</span>) (p <span style="color: #ff8700;">::</span> <span style="color: #00d7af;">Type</span>) (h <span style="color: #ff8700;">::</span> <span style="color: #00d7af;">Type</span>) <span style="color: #ff8700;">=</span> <span style="color: #00d7af;">Implementation</span>
@@ -167,7 +167,7 @@
 </div>
 </section>
 <section id="slide-sec-">
-<h3 id="org29233ae">Lookup tables</h3>
+<h3 id="org25bb71f">Lookup tables</h3>
 <ul>
 <li>Represented as heterogeneous association lists</li>
 
@@ -182,7 +182,7 @@
 </div>
 </section>
 <section id="slide-sec-">
-<h3 id="org3793e2f">Similar construction for ciphers</h3>
+<h3 id="org6f54c64">Similar construction for ciphers</h3>
 <ul>
 <li>More elaborate, more types involved
 <ul>
@@ -215,13 +215,13 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org5e3ca8f">Questions?</h2>
+<h2 id="orgf97e185">Questions?</h2>
 </section>
 </section>
 </div>
 </div>
-<script src="http://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/head.min.js"></script>
-<script src="http://cdn.jsdelivr.net/reveal.js/3.0.0/js/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/head.min.js"></script>
+<script src="https://cdn.jsdelivr.net/reveal.js/3.0.0/js/reveal.js"></script>
 
 <script>
 // Full list of configuration options available here:
@@ -248,11 +248,11 @@ multiplex: {
 
 // Optional libraries used to extend on reveal.js
 dependencies: [
- { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/classList.js', condition: function() { return !document.body.classList; } },
- { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
- { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
- { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
- { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
+ { src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+ { src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+ { src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
 });
 </script>
 </body>

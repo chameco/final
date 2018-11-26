@@ -1,7 +1,7 @@
 #+title: 11/27/18 Design Presentation
 #+author: Samuel Breese and Jordan Alligood
 #+options: date:nil timestamp:nil toc:nil num:nil
-#+reveal_root: http://cdn.jsdelivr.net/reveal.js/3.0.0/
+#+reveal_root: https://cdn.jsdelivr.net/reveal.js/3.0.0/
 
 * Introduction
 - Implementation in Haskell
@@ -9,8 +9,7 @@
 * Why Haskell?
 - Safety guarantees
   - Avoid buffer overflow
-- Trivial parallelism for brute-force
-  - Parallelism is a compiler option
+- Parallelism is a compiler option
 - Good libraries, big integers in standard library
 - Abstraction
 * Status of implementation
@@ -24,21 +23,20 @@
   - Probably Triple-DES :(
 - Some PRNGs/stream ciphers
   - Using ~/dev/random~ for RSA prime generation, Miller-Rabin, etc.
+  - Probably ChaCha20?
 - Deriving instances of cipher interface automatically for PRNGs
 - Generic HMAC on our hash interface
 * Eventual result
-- Hopefully a client compatible with SSL 3.0/maybe TLS 1.0 if we're ambitious
+- Hopefully a client compatible with TLS 1.2
 - Overlap:
   - RSA or DH for key exchange
-  - 3DES for cipher
-  - SHA1 for data integrity
+  - 3DES or ChaCha20 for cipher
+  - SHA-1 or SHA-256 HMAC for data integrity
 - Architecture is general enough to support whatever we want, so just having fun at this point.
 - Unsure of how much is expected for the assignment
 * Security considerations
 - Unlikely that we'll implement algorithms for "modern" TLS by the deadline
 - Trying to avoid things that are /really/ easily broken
-  - MD5
-  - RC4
 * Brute-force attack for any implemented cipher
 - Given a cipher instance and a plaintext-ciphertext pair, finds the key
 - (Eventually)
