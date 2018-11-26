@@ -21,7 +21,9 @@ padMessage bs = bs <> padding <> len
         paddingLength = fromIntegral $ if paddingDiff <= 0 then 512 - paddingDiff else paddingDiff
         paddingWords = case replicate paddingLength 0 of (x:xs) -> (x .|. 0b10000000):xs; [] -> []
         padding = BS.pack paddingWords
-        len = integerToByteString 8 . fromIntegral $ BS.length bs
+        len = integerToByteString 8
+              . flip (mod :: Integer -> Integer -> Integer) (((^) :: Integer -> Integer -> Integer) 2 64)
+              . (*8) . fromIntegral $ BS.length bs
 
 mergeWords :: Word8 -> Word8 -> Word8 -> Word8 -> Word32
 mergeWords a b c d =
@@ -72,5 +74,5 @@ instance Hash SHA1 where
   impl = Implementation
     { hash = mergeHashValues . foldl hashChunk (0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0)
     , parsePlaintext = fmap (V.fromList . unpackWord32) . splitEvery 64 . padMessage
-    , renderHashtext = BS.pack . fmap (fromIntegral . ord) . ($"") . showHex
+    , renderHashtext = padByteString 40 . BS.pack . fmap (fromIntegral . ord) . ($"") . showHex
     }

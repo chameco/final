@@ -11,7 +11,7 @@ modExp base e n = go (mod base n) e 1
 
 modInv :: Integer -> Integer -> Integer
 modInv a m
-  | inv < 0 = m - inv
+  | inv < 0 = m + inv
   | otherwise = inv
   where euclidean :: Integer -> Integer -> (Integer, Integer, Integer)
         euclidean a' 0 = (1, 0, a')
