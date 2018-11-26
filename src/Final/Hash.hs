@@ -2,13 +2,13 @@
 
 module Final.Hash
   ( Implementation(..)
-  , Hash, Impl, impl, name
+  , Hash, Plaintext, Hashtext, Impl, impl, name
   , Lookup(..)
   , constructLookup, hashWith
   ) where
 
 import Data.Kind
-import Data.ByteString (ByteString)
+import Data.ByteString.Lazy (ByteString)
 import Data.Text (Text)
 
 data Implementation (a :: Type) (p :: Type) (h :: Type) = Implementation
