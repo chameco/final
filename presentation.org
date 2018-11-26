@@ -1,0 +1,25 @@
+#+title: 11/27/18 Design Presentation
+#+author: Samuel Breese and Jordan Alligood
+
+* Introduction
+- Implementation in Haskell
+- Using advanced type-level features to abstract over ciphers and hashes
+* Status of implementation
+- RSA and SHA-1 implemented fully
+  - Miller-Rabin for primality testing
+- SDES ported to common interface for brute-force attack
+- Currently debugging SHA-256 implementation
+* Future implementation plans
+- ElGamal and ECC (fun, fairly easy)
+- A good block cipher (harder)
+  - Probably Triple-DES
+- Some PRNGs for stream ciphers
+  - Using ~/dev/random~ for RSA prime generation, etc.
+- Deriving instances of cipher interface automatically for PRNGs
+- Generic HMAC on our hash interface
+* Eventual result
+- Hopefully a client compatible with SSL 3.0
+- Overlap:
+  - RSA for key exchange
+  - 3DES for cipher
+  - SHA1 for data integrity
