@@ -25,18 +25,6 @@ padMessage bs = bs <> padding <> len
               . flip (mod :: Integer -> Integer -> Integer) (((^) :: Integer -> Integer -> Integer) 2 64)
               . (*8) . fromIntegral $ BS.length bs
 
-mergeWords :: Word8 -> Word8 -> Word8 -> Word8 -> Word32
-mergeWords a b c d =
-  shiftL (fromIntegral a) 24
-  .|. shiftL (fromIntegral b) 16
-  .|. shiftL (fromIntegral c) 8
-  .|. fromIntegral d
-
-unpackWord32 :: ByteString -> [Word32]
-unpackWord32 = go . BS.unpack
-  where go (a:b:c:d:xs) = mergeWords a b c d:go xs
-        go _ = []
-
 hashChunk :: HashValues -> Vector Word32 -> HashValues
 hashChunk hs@(h0, h1, h2, h3, h4) msg = (h0 + a, h1 + b, h2 + c, h3 + d, h4 + e)
   where (a, b, c, d, e) = go hs 0
