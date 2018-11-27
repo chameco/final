@@ -32,7 +32,7 @@ chaChaRound x = V.fromList [x0', x1', x2', x3', x4', x5', x6', x7'
         (x3', x4', x9', x14') = quarterRound (x3, x4, x9, x14)
 
 chaChaBlock :: Vector Word32 -> Vector Word32
-chaChaBlock input = V.zipWith (+) x $ go 0 x  
+chaChaBlock input = V.zipWith (+) x $ go 0 x
   where go :: Int -> Vector Word32 -> Vector Word32
         go i | i >= 10 = id
              | otherwise = go (i + 1) . chaChaRound
