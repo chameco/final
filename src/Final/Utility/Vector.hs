@@ -1,5 +1,6 @@
 module Final.Utility.Vector where
 
+import Data.Binary
 import Data.Kind (Type)
 
 import Final.Utility.Natural
@@ -10,6 +11,14 @@ data Vector (a :: Type) :: Natural -> Type where
   Cons :: forall (a :: Type) (n :: Natural). a -> Vector a n -> Vector a ('Successor n)
 deriving instance forall (a :: Type) (n :: Natural). Show a => Show (Vector a n)
 deriving instance forall (a :: Type) (n :: Natural). Eq a => Eq (Vector a n)
+
+instance forall (n :: Natural) (a :: Type). Binary a => Binary (Vector a n) where
+  put = put . toList
+  get = undefined
+
+toList :: forall (n :: Natural) (a :: Type). Vector a n -> [a]
+toList Empty = []
+toList (Cons x rest) = x : toList rest
 
 lengthVector :: forall (n :: Natural) (a :: Type). Vector a n -> Int
 lengthVector Empty = 0

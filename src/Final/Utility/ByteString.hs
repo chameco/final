@@ -4,6 +4,8 @@ import Data.Word (Word8, Word32)
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
+import Data.Vector (Vector)
+import qualified Data.Vector as V (fromList)
 
 byteStringToInteger :: ByteString -> Integer
 byteStringToInteger = foldr (\x y -> y * 256 + fromIntegral x) 0 . reverse . unpad . BS.unpack
@@ -53,3 +55,13 @@ unpackWord32 :: ByteString -> [Word32]
 unpackWord32 = go . BS.unpack
   where go (a:b:c:d:xs) = mergeWords a b c d:go xs
         go _ = []
+
+padMessage :: ByteString -> [Vector Word32]
+padMessage bs = fmap (V.fromList . unpackWord32) $ splitEvery 64 $ bs <> padding <> len
+  where paddingDiff = 56 - mod (BS.length bs) 64
+        paddingLength = fromIntegral $ if paddingDiff <= 0 then 512 - paddingDiff else paddingDiff
+        paddingWords = case replicate paddingLength 0 of (x:xs) -> (x .|. 0b10000000):xs; [] -> []
+        padding = BS.pack paddingWords
+        len = integerToByteString 8
+              . flip (mod :: Integer -> Integer -> Integer) (((^) :: Integer -> Integer -> Integer) 2 64)
+              . (*8) . fromIntegral $ BS.length bs
