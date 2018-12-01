@@ -35,7 +35,7 @@ chaChaRound x = V.fromList [x0', x1', x2', x3', x4', x5', x6', x7'
         (x3', x4', x9', x14') = quarterRound (x3, x4, x9, x14)
 
 chaChaBlock :: Vector Word32 -> Vector Word32
-chaChaBlock input = V.zipWith (+) x $ (foldr1 (.) $ replicate 10 chaChaRound) x
+chaChaBlock input = V.zipWith (+) x $ foldr1 (.) (replicate 10 chaChaRound) x
   where x :: Vector Word32
         x = [0x61707865, 0x3320646e, 0x79622d32, 0x6b206574] <> input
 
@@ -48,7 +48,7 @@ chaChaZipXor _ _ = []
 
 chaChaEncrypt :: Vector Word32 -> Word32 -> Vector Word32 -> [[Word8]] -> [[Word8]]
 chaChaEncrypt key counter nonce plaintext =
-  (\(i, block) -> chaChaZipXor block . V.toList . chaChaBlock $ V.fromList $ unpackWord32LE $ packWord32BE $ V.toList (key <> [toBE32 (counter + i)] <> nonce))
+  (\(i, block) -> chaChaZipXor block . V.toList . chaChaBlock . V.fromList . unpackWord32LE . packWord32BE . V.toList $ mconcat [key, [toBE32 (counter + i)], nonce])
   <$> zip [0..] plaintext
 
 unpackPartialWord32 :: ByteString -> [Word32]
@@ -79,7 +79,7 @@ chaChaRenderKey :: Vector Word32 -> ByteString
 chaChaRenderKey = packWord32LE . V.toList
 
 poly1305DeriveKey :: Vector Word32 -> Vector Word32 -> (Vector Word32, Vector Word32)
-poly1305DeriveKey key nonce = V.splitAt 4 . V.take 8 $ chaChaBlock $ mconcat [key, [0], nonce]
+poly1305DeriveKey key nonce = V.splitAt 4 . V.take 8 . chaChaBlock . V.fromList . unpackWord32LE . packWord32BE . V.toList $ mconcat [key, [0], nonce]
 
 poly1305 :: (Vector Word32, Vector Word32) -> ByteString -> ByteString
 poly1305 (rv, sv) = serialize . accumulate 0 . align
