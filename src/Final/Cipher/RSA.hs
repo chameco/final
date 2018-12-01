@@ -29,20 +29,20 @@ instance Cipher RSA where
     , deriveEncryptionKey = \(d, p, q) -> (modInv d $ carmichaelTotient p q, p * q)
     , parseEncryptionKey = \bs -> let (ebs, nbs) = BS.splitAt 2048 bs
                                   in if BS.length bs == 2 * 2048
-                                     then pure (byteStringToInteger ebs, byteStringToInteger nbs)
+                                     then pure (byteStringToIntegerBE ebs, byteStringToIntegerBE nbs)
                                      else throwString "Invalid RSA encryption key"
-    , renderEncryptionKey = \(e, n) -> integerToByteString 2048 e <> integerToByteString 2048 n
+    , renderEncryptionKey = \(e, n) -> integerToByteStringBE 2048 e <> integerToByteStringBE 2048 n
     , parseDecryptionKey = \bs -> let (dbs, rest) = BS.splitAt 2048 bs
                                       (pbs, qbs) = BS.splitAt 2048 rest
                                   in if BS.length bs == 3 * 2048
-                                     then pure (byteStringToInteger dbs, byteStringToInteger pbs, byteStringToInteger qbs)
+                                     then pure (byteStringToIntegerBE dbs, byteStringToIntegerBE pbs, byteStringToIntegerBE qbs)
                                      else throwString "Invalid RSA decryption key"
-    , renderDecryptionKey = \(d, p, q) -> mconcat [ integerToByteString 2048 d
-                                                  , integerToByteString 2048 p
-                                                  , integerToByteString 2048 q
+    , renderDecryptionKey = \(d, p, q) -> mconcat [ integerToByteStringBE 2048 d
+                                                  , integerToByteStringBE 2048 p
+                                                  , integerToByteStringBE 2048 q
                                                   ]
-    , parsePlaintext = pure . fmap byteStringToInteger . splitEvery 128
-    , renderPlaintext = mconcat . integersToByteStrings 0
-    , parseCiphertext = pure . fmap byteStringToInteger . splitEvery 2048
-    , renderCiphertext = mconcat . integersToByteStrings 2048
+    , parsePlaintext = pure . fmap byteStringToIntegerBE . splitEvery 128
+    , renderPlaintext = mconcat . integersToByteStringsBE 0
+    , parseCiphertext = pure . fmap byteStringToIntegerBE . splitEvery 2048
+    , renderCiphertext = mconcat . integersToByteStringsBE 2048
     }

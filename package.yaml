@@ -22,6 +22,7 @@ dependencies:
 - safe-exceptions
 - time
 - network
+- cpu
 - random
 - optparse-applicative
 - singletons
