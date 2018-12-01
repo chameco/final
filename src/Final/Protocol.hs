@@ -1,100 +1,83 @@
 module Final.Protocol where
 
+import Control.Applicative
+import Control.Concurrent.MVar
+import Control.Exception (bracket)
+
 import Data.Binary
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as BS (unpack, toStrict)
-import Data.Functor ((<&>))
-import Data.Word (Word32)
-import Final.Utility.Bits (Bits)
+import Data.ByteString.Lazy.Char8 hiding (head, map, concat)
+import qualified Data.ByteString.Lazy as BS
+import Data.List
+import Data.Tuple (swap)
+
+import Final.Cipher as Cipher
+import Final.Cipher.RSA
+import Final.Hash as Hash
+import Final.Hash.SHA256
+import Final.Utility.UInt as UInt
 import Final.Utility.Natural
-import GHC.Generics (Generic)
-import Network.Socket (Socket)
+
+import Network.Socket hiding (send, recv)
 import Network.Socket.ByteString
+
 import Numeric (showHex)
+
+import Prelude hiding (putStrLn)
+
+import System.Random
 
 prettyPrint :: ByteString -> String
 prettyPrint = concat . map (flip showHex "") . BS.unpack
 
-data ProtocolVersion = ProtocolVersion {major :: Word8, minor :: Word8} deriving Generic
--- TLSv1.2 (ProtocolVersion 3 3) should serialize to 0x0303
-instance Binary ProtocolVersion
+type UInt24 = UInt (Add (Mul Ten Two) Four)
 
-data AlertLevel = Warning | Fatal
-instance Binary AlertLevel where
-  put Warning = put (1 :: Word8)
-  put Fatal = put (2 :: Word8)
-  get = get @Word8 <&> \case
-          1 -> Warning
-          2 -> Fatal
-          _ -> error "Error deserializing an AlertLevel"
+cipher :: Cipher.Impl RSA
+cipher = Cipher.impl
 
-data AlertDescription = CloseNotify
-                      | UnexpectedMessage
-                      | BadRecordMAC
-                      | DecryptionFailedRESERVED
-                      | RecordOverflow
-                      | DecompressionFailure
-                      | HandshakeFailure
-                      | NoCertificateRESERVED
-                      | BadCertificate
-                      | UnsupportedCertificate
-                      | CertificateRevoked
-                      | CertificateExpired
-                      | CertificateUnknown
-                      | IllegalParameter
-                      | UnknownCA
-                      | AccessDenied
-                      | DecodeError
-                      | DecryptError
-                      deriving Generic
-instance Binary AlertDescription
+prf :: Hash.Impl SHA256
+prf = Hash.impl
 
-data Alert = Alert AlertLevel AlertDescription deriving Generic
-instance Binary Alert
+-- testServer :: IO ()
+testServer = withSocketsDo $ do
+  randomGen <- getStdGen >>= newMVar
+  bracket open close body
+  where
+    resolve port = do
+      let hints = defaultHints {addrFlags = [AI_PASSIVE], addrSocketType = Stream}
+      fmap head $ getAddrInfo (Just hints) Nothing (Just port)
+    open = do
+      addr <- resolve "3000"
+      sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
+      setSocketOption sock ReuseAddr 1
+      bind sock $ addrAddress addr
+      listen sock 10
+      return sock
+    body sock = do
+      (conn :: Socket, peer) <- accept sock
+      putStrLn $ append "Connection from " (pack $ show peer)
+      (msg, privateKey) <- decode . fromStrict <$> recv conn (2^15)
+      putStrLn $ renderPlaintext cipher $ decrypt cipher privateKey msg
 
-data SessionID
-data CipherSuite
-data CompressionMethod
-data Extension
+-- testClient :: IO ()
+testClient = withSocketsDo $ do
+  randomGen <- getStdGen >>= newMVar
+  bracket open close $ talk randomGen
+  where
+    resolve host port = do
+      let hints = defaultHints {addrSocketType = Stream}
+      fmap head $ getAddrInfo (Just hints) (Just host) (Just port)
+    open = do
+      addr <- resolve "127.0.0.1" "3000"
+      sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
+      connect sock $ addrAddress addr
+      return sock
+    talk randomGen sock = do
+      privateKey <- modifyMVar randomGen (pure . swap . generateDecryptionKey cipher)
+      let publicKey = deriveEncryptionKey cipher privateKey
+      msg <- Cipher.parsePlaintext cipher "Hello World"
+      send sock $ toStrict $ encode (encrypt cipher publicKey msg, privateKey)
 
-data HandshakeType =  HelloRequest
-                    | ClientHello { client_version :: ProtocolVersion
-                                  , random :: Random
-                                  , session_id :: SessionID
-                                  , cipher_suites :: [CipherSuite]
-                                  , compression_methods :: [CompressionMethod]
-                                  , extensions :: [Extension]
-                                  }
-                    | ServerHello { server_version :: ProtocolVersion
-                                  , random :: Random
-                                  , session_id :: SessionID
-                                  , cipher_suite :: CipherSuite
-                                  , compression_method :: CompressionMethod
-                                  , extensions :: [Extension]
-                                  }
-                    | Certificate -- TODO https://tools.ietf.org/html/rfc5246#section-7.4.2
-                    | ServerKeyExchange -- TODO https://tools.ietf.org/html/rfc5246#section-7.4.3
-                    | CertificateRequest -- TODO https://tools.ietf.org/html/rfc5246#section-7.4.4
-                    | ServerHelloDone
-                    | CertificateVerify -- TODO https://tools.ietf.org/html/rfc5246#section-7.4.8
-                    | ClientKeyExchange -- TODO https://tools.ietf.org/html/rfc5246#section-7.4.7
-                    | Finished -- TODO https://tools.ietf.org/html/rfc5246#section-7.4.9
-
-data Random = Random {time :: Word32, random :: Bits Eight} deriving Generic
-instance Binary Random
-
-generateRandom :: IO Random
-generateRandom = undefined
-
-type UInt24 = Bits (Add (Mul Ten Two) Four)
-
-clientHello :: Socket -> IO Bool
-clientHello sock = do
-  -- TODO https://tools.ietf.org/html/rfc5246#section-7.4.1.2
-  random <- generateRandom
-  send sock $ BS.toStrict $ encode random
-  pure False
-
-serverHello :: Socket -> IO Bool
-serverHello sock = do
-  pure False
+-- serverHello :: Socket -> IO Bool
+-- serverHello sock = do
+--   pure False
