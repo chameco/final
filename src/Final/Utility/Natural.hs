@@ -13,6 +13,14 @@ $(singletons [d|
     deriving (Show, Eq)
   |])
 
+natValue :: forall (n :: Natural). SingI n => Int
+natValue = natValue_ (sing :: Sing n)
+  where
+    natValue_ :: forall (m :: Natural). SNatural m -> Int
+    natValue_ = \case
+      SZero -> 0
+      SSuccessor n -> succ $ natValue_ n
+
 type family Add x y :: Natural where
   Add x 'Zero = x
   Add x ('Successor y) = 'Successor (Add x y)

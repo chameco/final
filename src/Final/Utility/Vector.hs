@@ -12,6 +12,7 @@ data Vector (a :: Type) :: Natural -> Type where
   Cons :: forall (a :: Type) (n :: Natural). a -> Vector a n -> Vector a ('Successor n)
 deriving instance forall (a :: Type) (n :: Natural). Show a => Show (Vector a n)
 deriving instance forall (a :: Type) (n :: Natural). Eq a => Eq (Vector a n)
+deriving instance forall (a :: Type) (n :: Natural). Ord a => Ord (Vector a n)
 
 instance forall (n :: Natural) (a :: Type). Binary a => Binary (Vector a n) where
   put = put . toList
