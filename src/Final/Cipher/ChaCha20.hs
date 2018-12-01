@@ -88,7 +88,7 @@ poly1305 (rv, sv) = serialize . accumulate 0 . appendOne . align16 . BS.unpack
   where p :: Integer
         p = 0x3fffffffffffffffffffffffffffffffb
         r :: Integer
-        r = byteStringToInteger . packWord32 $ V.toList rv
+        r = (byteStringToInteger . packWord32 $ V.toList rv) .&. 0x0ffffffc0ffffffc0ffffffc0fffffff
         s :: Integer
         s = byteStringToInteger . packWord32 $ V.toList sv
         align16 :: [Word8] -> ([Word16], Maybe Word8)
