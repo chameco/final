@@ -1,9 +1,14 @@
 module Final.Utility.ByteString where
 
+import Control.Arrow (first)
+
+import Data.Kind
 import Data.Word (Word8, Word32)
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
+
+import System.Random
 
 byteStringToInteger :: ByteString -> Integer
 byteStringToInteger = foldr (\x y -> y * 256 + fromIntegral x) 0 . reverse . unpad . BS.unpack
@@ -53,3 +58,16 @@ unpackWord32 :: ByteString -> [Word32]
 unpackWord32 = go . BS.unpack
   where go (a:b:c:d:xs) = mergeWords a b c d:go xs
         go _ = []
+
+packWord32 :: [Word32] -> ByteString
+packWord32 = BS.pack . concatMap unmergeWord
+
+randomWord8 :: RandomGen g => g -> (Word8, g)
+randomWord8 = randomR (0, 255)
+
+randomByteString :: forall (g :: Type). RandomGen g => g -> Int -> (ByteString, g)
+randomByteString gen = first BS.pack . go gen
+  where go :: g -> Int -> ([Word8], g)
+        go gen' 0 = ([], gen')
+        go gen' n = first (b:) $ go gen'' (n - 1)
+          where (b, gen'') = randomWord8 gen'

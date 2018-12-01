@@ -1,7 +1,9 @@
 module Final.Cipher.ChaCha20 where
 
 import Control.Exception.Safe
+import Control.Arrow (first)
 
+import Data.Maybe
 import Data.Word
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
@@ -59,11 +61,90 @@ unpackPartialWord32 = go . BS.unpack
         go (a:xs) = shiftL (fromIntegral a) 24:go xs
         go [] = []
 
-parseMessage :: MonadThrow m => ByteString -> m [[Word8]]
-parseMessage = pure . fmap BS.unpack . splitEvery 64
+chaChaParseMessage :: MonadThrow m => ByteString -> m [[Word8]]
+chaChaParseMessage = pure . fmap BS.unpack . splitEvery 64
 
-renderMessage :: [[Word8]] -> ByteString
-renderMessage = BS.pack . mconcat
+chaChaRenderMessage :: [[Word8]] -> ByteString
+chaChaRenderMessage = BS.pack . mconcat
+
+chaChaParseNonce :: MonadThrow m => ByteString -> m (Vector Word32)
+chaChaParseNonce d = if BS.length d == 12
+                     then pure . V.fromList $ unpackWord32 d
+                     else throwString "Invalid ChaCha20 nonce"
+
+chaChaParseKey :: MonadThrow m => ByteString -> m (Vector Word32)
+chaChaParseKey d = if BS.length d == 32
+                   then pure . V.fromList $ unpackWord32 d
+                   else throwString "Invalid ChaCha20 key"
+
+chaChaRenderKey :: Vector Word32 -> ByteString
+chaChaRenderKey = BS.pack . concatMap unmergeWord . V.toList
+
+poly1305DeriveKey :: Vector Word32 -> Vector Word32 -> (Vector Word32, Vector Word32)
+poly1305DeriveKey key nonce = V.splitAt 4 . V.take 8 $ chaChaBlock $ mconcat [key, [0], nonce]
+
+poly1305 :: (Vector Word32, Vector Word32) -> ByteString -> ByteString
+poly1305 (rv, sv) = serialize . accumulate 0 . appendOne . align16 . BS.unpack
+  where p :: Integer
+        p = 0x3fffffffffffffffffffffffffffffffb
+        r :: Integer
+        r = byteStringToInteger . packWord32 $ V.toList rv
+        s :: Integer
+        s = byteStringToInteger . packWord32 $ V.toList sv
+        align16 :: [Word8] -> ([Word16], Maybe Word8)
+        align16 (x1:x2:xs) = first ((shiftL (fromIntegral x1 :: Word16) 8 .|. fromIntegral x2):) $ align16 xs
+        align16 [x1] = ([], Just x1)
+        align16 [] = ([], Nothing)
+        appendOne :: ([Word16], Maybe Word8) -> [Integer]
+        appendOne (xs, x) = (f <$> xs) ++ maybeToList (f <$> x)
+          where f n = shiftL (fromIntegral n) 1 .|. 1
+        accumulate :: Integer -> [Integer] -> Integer
+        accumulate = foldl (\a n -> mod ((a + n) * r) p)
+        serialize :: Integer -> ByteString
+        serialize x = BS.drop (BS.length bs - 16) bs
+          where bs = integerToByteString 16 (x + s)
+
+chaCha20Poly1305AEAD :: MonadThrow m => ByteString -> ByteString -> ByteString -> ByteString -> m (ByteString, ByteString)
+chaCha20Poly1305AEAD key' nonce' plaintext' aad = do
+  key <- chaChaParseKey key'
+  nonce <- chaChaParseNonce nonce'
+  plaintext <- chaChaParseMessage plaintext'
+  let poly1305Key = poly1305DeriveKey key nonce
+      ciphertext = chaChaRenderMessage $ chaChaEncrypt key 1 nonce plaintext
+      padding1 = BS.pack $ replicate (16 - mod (fromIntegral $ BS.length aad) 16) 0
+      padding2 = BS.pack $ replicate (16 - mod (fromIntegral $ BS.length ciphertext) 16) 0
+      input = mconcat
+        [ aad
+        , padding1
+        , ciphertext
+        , padding2
+        , integerToByteString 64 . fromIntegral $ BS.length aad
+        , integerToByteString 64 . fromIntegral $ BS.length ciphertext
+        ]
+      tag = poly1305 poly1305Key input
+  pure (ciphertext, tag)
+
+chaCha20Poly1305UnAEAD :: MonadThrow m => ByteString -> ByteString -> (ByteString, ByteString) -> ByteString -> m (Maybe ByteString)
+chaCha20Poly1305UnAEAD key' nonce' (ciphertext', tag) aad = do
+  key <- chaChaParseKey key'
+  nonce <- chaChaParseNonce nonce'
+  ciphertext <- chaChaParseMessage ciphertext'
+  let poly1305Key = poly1305DeriveKey key nonce
+      plaintext = chaChaRenderMessage $ chaChaEncrypt key 1 nonce ciphertext
+      padding1 = BS.pack $ replicate (16 - mod (fromIntegral $ BS.length aad) 16) 0
+      padding2 = BS.pack $ replicate (16 - mod (fromIntegral $ BS.length ciphertext') 16) 0
+      input = mconcat
+        [ aad
+        , padding1
+        , ciphertext'
+        , padding2
+        , integerToByteString 64 . fromIntegral $ BS.length aad
+        , integerToByteString 64 . fromIntegral $ BS.length ciphertext'
+        ]
+      tag' = poly1305 poly1305Key input
+  pure $ if tag == tag'
+         then Just plaintext
+         else Nothing
 
 data ChaCha20
 instance Cipher ChaCha20 where
@@ -75,14 +156,14 @@ instance Cipher ChaCha20 where
   impl = Implementation
     { encrypt = \k -> chaChaEncrypt k 0 [0, 0, 0] -- TODO: Increment nonce
     , decrypt = \k -> chaChaEncrypt k 0 [0, 0, 0]
-    , generateDecryptionKey = undefined
+    , generateDecryptionKey = first (V.fromList . unpackWord32) . flip randomByteString 32
     , deriveEncryptionKey = id
-    , parseEncryptionKey = pure . V.fromList . unpackWord32
-    , renderEncryptionKey = BS.pack . concatMap unmergeWord . V.toList
-    , parseDecryptionKey = pure . V.fromList . unpackWord32
-    , renderDecryptionKey = BS.pack . concatMap unmergeWord . V.toList
-    , parsePlaintext = parseMessage
-    , renderPlaintext = renderMessage
-    , parseCiphertext = parseMessage
-    , renderCiphertext = renderMessage
+    , parseEncryptionKey = chaChaParseKey
+    , renderEncryptionKey = chaChaRenderKey
+    , parseDecryptionKey = chaChaParseKey
+    , renderDecryptionKey = chaChaRenderKey
+    , parsePlaintext = chaChaParseMessage
+    , renderPlaintext = chaChaRenderMessage
+    , parseCiphertext = chaChaParseMessage
+    , renderCiphertext = chaChaRenderMessage
     }
