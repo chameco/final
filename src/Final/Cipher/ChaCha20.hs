@@ -5,6 +5,7 @@ import Control.Arrow (first)
 
 import Data.Word
 import Data.Bits
+import Data.Binary
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 import Data.Vector (Vector, (!))
@@ -14,6 +15,10 @@ import System.Endian (toBE32)
 
 import Final.Cipher
 import Final.Utility.ByteString
+
+instance Binary a => Binary (Vector a) where
+  put = put . V.toList
+  get = V.fromList <$> get
 
 quarterRound :: (Word32, Word32, Word32, Word32) -> (Word32, Word32, Word32, Word32)
 quarterRound (a, b, c, d) = (a'', b'''', c'', d'''')
