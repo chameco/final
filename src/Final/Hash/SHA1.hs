@@ -5,7 +5,6 @@ import Numeric (showHex)
 import Data.Char (ord)
 import Data.Word
 import Data.Bits
-import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
@@ -14,16 +13,6 @@ import Final.Hash
 import Final.Utility.ByteString
 
 type HashValues = (Word32, Word32, Word32, Word32, Word32)
-
-padMessage :: ByteString -> ByteString
-padMessage bs = bs <> padding <> len
-  where paddingDiff = 56 - mod (BS.length bs) 64
-        paddingLength = fromIntegral $ if paddingDiff <= 0 then 512 - paddingDiff else paddingDiff
-        paddingWords = case replicate paddingLength 0 of (x:xs) -> (x .|. 0b10000000):xs; [] -> []
-        padding = BS.pack paddingWords
-        len = integerToByteString 8
-              . flip (mod :: Integer -> Integer -> Integer) (((^) :: Integer -> Integer -> Integer) 2 64)
-              . (*8) . fromIntegral $ BS.length bs
 
 hashChunk :: HashValues -> Vector Word32 -> HashValues
 hashChunk hs@(h0, h1, h2, h3, h4) msg = (h0 + a, h1 + b, h2 + c, h3 + d, h4 + e)
@@ -61,6 +50,6 @@ instance Hash SHA1 where
   name = "SHA1"
   impl = Implementation
     { hash = mergeHashValues . foldl hashChunk (0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0)
-    , parsePlaintext = fmap (V.fromList . unpackWord32) . splitEvery 64 . padMessage
+    , parsePlaintext = padMessage
     , renderHashtext = padByteString 40 . BS.pack . fmap (fromIntegral . ord) . ($"") . showHex
     }

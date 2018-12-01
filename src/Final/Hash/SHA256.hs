@@ -5,7 +5,6 @@ import Numeric (showHex)
 import Data.Char (ord)
 import Data.Word
 import Data.Bits
-import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
@@ -26,16 +25,6 @@ roundConstants =
   , 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3
   , 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
   ]
-
-padMessage :: ByteString -> ByteString
-padMessage bs = bs <> padding <> len
-  where paddingDiff = 56 - mod (BS.length bs) 64
-        paddingLength = fromIntegral $ if paddingDiff <= 0 then 512 - paddingDiff else paddingDiff
-        paddingWords = case replicate paddingLength 0 of (x:xs) -> (x .|. 0b10000000):xs; [] -> []
-        padding = BS.pack paddingWords
-        len = integerToByteString 8
-              . flip (mod :: Integer -> Integer -> Integer) (((^) :: Integer -> Integer -> Integer) 2 64)
-              . (*8) . fromIntegral $ BS.length bs
 
 hashChunk :: HashValues -> Vector Word32 -> HashValues
 hashChunk hs@(h0, h1, h2, h3, h4, h5, h6, h7) msg = (h0 + a, h1 + b, h2 + c, h3 + d, h4 + e, h5 + f, h6 + g, h7 + h)
@@ -78,6 +67,6 @@ instance Hash SHA256 where
   name = "SHA256"
   impl = Implementation
     { hash = mergeHashValues . foldl hashChunk (0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19)
-    , parsePlaintext = fmap (V.fromList . unpackWord32) . splitEvery 64 . padMessage
+    , parsePlaintext = padMessage
     , renderHashtext = padByteString 64 . BS.pack . fmap (fromIntegral . ord) . ($"") . showHex
     }

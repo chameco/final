@@ -14,6 +14,7 @@ ghc-options:
 
 dependencies:
 - base
+- binary
 - text
 - bytestring
 - vector
@@ -23,6 +24,7 @@ dependencies:
 - network
 - random
 - optparse-applicative
+- singletons
 
 default-extensions:
 - TupleSections
