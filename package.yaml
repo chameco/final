@@ -24,6 +24,7 @@ dependencies:
 - network
 - random
 - optparse-applicative
+- singletons
 
 default-extensions:
 - TupleSections

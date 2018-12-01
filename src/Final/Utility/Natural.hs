@@ -1,17 +1,17 @@
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TemplateHaskell      #-}
 
 module Final.Utility.Natural where
 
 import Data.Kind (Type)
+import Data.Singletons.TH
 
-data Natural :: Type where
-  Zero :: Natural
-  Successor :: Natural -> Natural
-  deriving (Show, Eq)
-
-data SNatural :: Natural -> Type where
-  SZero :: SNatural 'Zero
-  SSuccessor :: forall (n :: Natural). SNatural n -> SNatural ('Successor n)
+$(singletons [d|
+  data Natural :: Type where
+    Zero :: Natural
+    Successor :: Natural -> Natural
+    deriving (Show, Eq)
+  |])
 
 type family Add x y :: Natural where
   Add x 'Zero = x

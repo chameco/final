@@ -2,6 +2,7 @@ module Final.Utility.Vector where
 
 import Data.Binary
 import Data.Kind (Type)
+import Data.Singletons
 
 import Final.Utility.Natural
 import Final.Utility.Finite
@@ -19,6 +20,21 @@ instance forall (n :: Natural) (a :: Type). Binary a => Binary (Vector a n) wher
 toList :: forall (n :: Natural) (a :: Type). Vector a n -> [a]
 toList Empty = []
 toList (Cons x rest) = x : toList rest
+
+replicate :: forall (a :: Type) (n :: Natural). SingI n => a -> Vector a n
+replicate a = replicate_ sing
+  where
+    replicate_ :: forall (m :: Natural). SNatural m -> Vector a m
+    replicate_ SZero = Empty
+    replicate_ (SSuccessor n) = Cons a $ replicate_ n
+
+fromList :: forall (a :: Type) (n :: Natural). SingI n => [a] -> Vector a n
+fromList = fromList_ sing
+  where
+    fromList_ :: forall (m :: Natural). SNatural m -> [a] -> Vector a m
+    fromList_ SZero _ = Empty
+    fromList_ _ [] = error "Not enough elements to construct the vector"
+    fromList_ (SSuccessor n) (x:xs) = Cons x $ fromList_ n xs
 
 lengthVector :: forall (n :: Natural) (a :: Type). Vector a n -> Int
 lengthVector Empty = 0
