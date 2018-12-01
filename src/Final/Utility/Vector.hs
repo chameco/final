@@ -10,13 +10,15 @@ import Final.Utility.Finite
 data Vector (a :: Type) :: Natural -> Type where
   Empty :: forall (a :: Type). Vector a 'Zero
   Cons :: forall (a :: Type) (n :: Natural). a -> Vector a n -> Vector a ('Successor n)
-deriving instance forall (a :: Type) (n :: Natural). Show a => Show (Vector a n)
 deriving instance forall (a :: Type) (n :: Natural). Eq a => Eq (Vector a n)
 deriving instance forall (a :: Type) (n :: Natural). Ord a => Ord (Vector a n)
 
-instance forall (n :: Natural) (a :: Type). Binary a => Binary (Vector a n) where
+instance forall (n :: Natural) (a :: Type). Show a => Show (Vector a n) where
+  show = show . toList
+
+instance forall (n :: Natural) (a :: Type). (Binary a, SingI n) => Binary (Vector a n) where
   put = put . toList
-  get = undefined
+  get = fromList <$> get
 
 toList :: forall (n :: Natural) (a :: Type). Vector a n -> [a]
 toList Empty = []
@@ -51,6 +53,9 @@ concatVector (Cons b bs) x = Cons b $ concatVector bs x
 
 popVector :: forall (n :: Natural) (a :: Type). Vector a ('Successor n) -> Vector a n
 popVector (Cons _ bs) = bs
+
+splitVector :: forall (a :: Type) (n :: Natural) (m :: Natural). Vector a (Add n m) -> (Vector a n, Vector a m)
+splitVector = undefined
 
 splitVector4 :: forall (a :: Type). Vector a Four -> (Vector a Two, Vector a Two)
 splitVector4 (Cons a (Cons b rest)) = (Cons a $ Cons b Empty, rest)
