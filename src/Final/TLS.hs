@@ -4,32 +4,35 @@ import Data.Word (Word8)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 
-clientSendHello :: IO ()
+import Network.Socket hiding (recv)
+import Network.Socket.ByteString (recv, sendAll)
+
+clientSendHello :: Socket -> IO ()
 clientSendHello = undefined
 
-clientRecvHello :: IO ByteString -- Assume server supports everything we request
+clientRecvHello :: Socket -> IO ByteString -- Assume server supports everything we request
 clientRecvHello = undefined
 
-clientRecvCert :: IO ()
+clientRecvCert :: Socket -> IO ()
 clientRecvCert = undefined
 
-clientRecvKey :: IO ByteString
+clientRecvKey :: Socket -> IO ByteString
 clientRecvKey = undefined
 
-clientRecvHelloDone :: IO ()
+clientRecvHelloDone :: Socket -> IO ()
 clientRecvHelloDone = undefined
 
-clientSendKeyExchange :: IO ()
+clientSendKeyExchange :: Socket -> IO ()
 clientSendKeyExchange = undefined
 
-clientSendChangeCipherSpec :: IO ()
+clientSendChangeCipherSpec :: Socket -> IO ()
 clientSendChangeCipherSpec = undefined
 
-clientSendHandshakeFinished :: IO ()
+clientSendHandshakeFinished :: Socket -> IO ()
 clientSendHandshakeFinished = undefined
 
-clientRecvChangeCipherSpec :: IO ()
+clientRecvChangeCipherSpec :: Socket -> IO ()
 clientRecvChangeCipherSpec = undefined
 
-clientRecvHandshakeFinished :: IO ()
+clientRecvHandshakeFinished :: Socket -> IO ()
 clientRecvHandshakeFinished = undefined
