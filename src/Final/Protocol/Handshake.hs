@@ -36,7 +36,7 @@ data ProtocolVersion = ProtocolVersion {major :: Word8, minor :: Word8} deriving
 -- TLSv1.2 (ProtocolVersion 3 3) should serialize to 0x0303
 instance Binary ProtocolVersion
 
-data AlertLevel = Warning | Fatal
+data AlertLevel = Warning | Fatal deriving Show
 instance Binary AlertLevel where
   put Warning = put (1 :: Word8)
   put Fatal = put (2 :: Word8)
@@ -63,10 +63,10 @@ data AlertDescription = CloseNotify
                       | AccessDenied
                       | DecodeError
                       | DecryptError
-                      deriving Generic
+                      deriving (Show, Generic)
 instance Binary AlertDescription
 
-data Alert = Alert AlertLevel AlertDescription deriving Generic
+data Alert = Alert AlertLevel AlertDescription deriving (Show, Generic)
 instance Binary Alert
 
 type SessionID = ()

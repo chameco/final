@@ -31,4 +31,5 @@ clientDiffieHellman sock randomGen = do
   let msg = ClientDiffieHellmanPublic p g $ modExp g y p
   print msg
   send sock $ toStrict $ encode msg
+  
   pure 0
