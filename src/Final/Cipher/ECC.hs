@@ -1,11 +1,17 @@
+{-
+This module contains an implementation of X25519 as described in RFC 7748.
+-}
 module Final.Cipher.ECC where
 
-import Data.Bits
+import Data.Bits (shiftL, shiftR, (.&.), (.|.), xor)
 import Data.Word (Word8)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 
+import System.Random
+
 import Final.Utility.Modular
+import Final.Utility.ByteString
 
 p :: Integer
 p = (2 :: Integer)^(255 :: Integer) - 19
@@ -27,6 +33,13 @@ decodeScalar25519 = decodeLittleEndian . BS.pack . fmap transform . zip [0,1..] 
         transform (0, b) = b .&. 248
         transform (31, b) = (b .&. 127) .|. 64
         transform (_, b) = b
+
+cswap :: Integer -> Integer -> Integer -> (Integer, Integer)
+cswap swap x2 x3 = (xor x2 dummy, xor x3 dummy)
+  where dummy :: Integer
+        dummy = (mask * swap) .&. xor x2 x3
+        mask :: Integer
+        mask = shiftL 1 512 - 1 
 
 x25519 :: Integer -> Integer -> ByteString
 x25519 k u = let (x2, z2, x3, z3, swap) = go (255 - 1) (1, 0, u, 1, 0)
@@ -59,9 +72,11 @@ x25519 k u = let (x2, z2, x3, z3, swap) = go (255 - 1) (1, 0, u, 1, 0)
                 x2'' = mod (aa * bb) p
                 z2'' = mod (e * mod (aa + mod (121665 * e) p) p) p
 
-cswap :: Integer -> Integer -> Integer -> (Integer, Integer)
-cswap swap x2 x3 = (xor x2 dummy, xor x3 dummy)
-  where dummy :: Integer
-        dummy = (mask * swap) .&. xor x2 x3
-        mask :: Integer
-        mask = shiftL 1 512 - 1 
+generatePrivateKeyECDHE :: RandomGen g => g -> (ByteString, g)
+generatePrivateKeyECDHE = flip randomByteString 32
+
+derivePublicKeyECDHE :: ByteString -> ByteString
+derivePublicKeyECDHE priv = x25519 (decodeScalar25519 priv) 9
+
+computeSharedSecretECDHE :: ByteString -> ByteString -> ByteString
+computeSharedSecretECDHE priv pub = x25519 (decodeScalar25519 priv) (decodeUCoordinate pub)
