@@ -2,9 +2,9 @@
 
 module Final.Hash
   ( Implementation(..)
-  , Hash, Plaintext, Hashtext, Impl, impl, name
+  , Hash, Plaintext, Hashtext, Impl, impl, name, blockSize
   , Lookup(..)
-  , constructLookup, hashWith
+  , constructLookup, hashWith, hashWithF
   ) where
 
 import Data.Kind
@@ -23,6 +23,7 @@ class Hash (a :: Type) where
   type family Plaintext a :: Type
   type family Hashtext a :: Type
   name :: Text
+  blockSize :: Integer
   impl :: Implementation a (Plaintext a) (Hashtext a)
 
 data Lookup (k :: Type) :: Type where
@@ -36,6 +37,9 @@ instance Show k => Show (Lookup k) where
 
 constructLookup :: forall a. Hash a => Lookup Text -> Lookup Text
 constructLookup = Some (name @a) (impl @a)
+
+hashWithF :: Impl a -> ByteString -> ByteString
+hashWithF h = renderHashtext h . hash h . parsePlaintext h
 
 hashWith :: Eq k => Lookup k -> k -> ByteString -> Maybe ByteString
 hashWith None _ _ = Nothing

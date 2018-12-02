@@ -48,6 +48,7 @@ instance Hash SHA1 where
   type Plaintext SHA1 = [Vector Word32]
   type Hashtext SHA1 = Integer
   name = "SHA1"
+  blockSize = 40
   impl = Implementation
     { hash = mergeHashValues . foldl hashChunk (0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0)
     , parsePlaintext = padMessage
