@@ -19,6 +19,13 @@ addHandshakeRecordHeader d = BS.S.pack $ mconcat
   , BS.unpack d
   ]
 
+addHandshakeHeader :: Word8 -> ByteString -> ByteString
+addHandshakeHeader t d = BS.pack $ mconcat
+  [ [ t
+    ]
+  , BS.unpack . integerToByteStringBE 3 . fromIntegral $ BS.length d
+  ]
+
 buildExtensionServerName :: ByteString -> ByteString
 buildExtensionServerName hostname = BS.pack $ mconcat
   [ [ 0x00, 0x00 -- Server name extension
@@ -70,10 +77,8 @@ buildExtensionSCT = BS.pack
   ]
 
 clientSendHello :: Socket -> ByteString -> ByteString -> IO ()
-clientSendHello sock rand hostname = sendAll sock . addHandshakeRecordHeader . BS.pack $ mconcat
-  [ [ 0x01 -- Client hello
-    -- 3-byte length here
-    , 0x03, 0x03 -- TLS 1.2
+clientSendHello sock rand hostname = sendAll sock . addHandshakeRecordHeader . addHandshakeHeader 0x01 . BS.pack $ mconcat
+  [ [ 0x03, 0x03 -- TLS 1.2
     ]
   , BS.unpack rand
   , [ 0x00 -- Don't provide a session ID
@@ -106,14 +111,25 @@ clientRecvKey = undefined
 clientRecvHelloDone :: Socket -> IO ()
 clientRecvHelloDone = undefined
 
-clientSendKeyExchange :: Socket -> IO ()
-clientSendKeyExchange = undefined
+clientSendKeyExchange :: Socket -> ByteString -> IO ()
+clientSendKeyExchange sock pub = sendAll sock . addHandshakeRecordHeader . addHandshakeHeader 0x10 $ mconcat
+  [ integerToByteStringBE 1 . fromIntegral $ BS.length pub
+  , pub
+  ]
 
 clientSendChangeCipherSpec :: Socket -> IO ()
-clientSendChangeCipherSpec = undefined
+clientSendChangeCipherSpec sock = sendAll sock $ BS.S.pack
+  [ 0x14 -- Change cipher spec record
+  , 0x03, 0x03 -- TLS 1.2
+  , 0x00, 0x01 -- 1 byte of change cipher spec data follows
+  , 0x01
+  ]
 
-clientSendHandshakeFinished :: Socket -> IO ()
-clientSendHandshakeFinished = undefined
+clientSendHandshakeFinished :: Socket -> ByteString -> ByteString -> IO ()
+clientSendHandshakeFinished sock eiv ctext = sendAll sock . addHandshakeRecordHeader $ mconcat
+  [ eiv
+  , ctext
+  ]
 
 clientRecvChangeCipherSpec :: Socket -> IO ()
 clientRecvChangeCipherSpec = undefined
