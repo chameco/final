@@ -5,6 +5,7 @@ import Numeric (showHex)
 import Data.Char (ord)
 import Data.Word
 import Data.Bits
+import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
@@ -48,6 +49,9 @@ hashChunk hs@(h0, h1, h2, h3, h4, h5, h6, h7) msg = (h0 + a, h1 + b, h2 + c, h3 
                 s0 = (a' `rotateR` 2) `xor` (a' `rotateR` 13) `xor` (a' `rotateR` 22)
                 maj = (a' .&. b') `xor` (a' .&. c') `xor` (b' .&. c')
                 temp2 = s0 + maj
+
+sha256 :: ByteString -> ByteString
+sha256 = integerToByteStringBE 32 . mergeHashValues . foldl hashChunk (0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19) . padMessage
 
 mergeHashValues :: HashValues -> Integer
 mergeHashValues (h0, h1, h2, h3, h4, h5, h6, h7) =
