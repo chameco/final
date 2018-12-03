@@ -48,6 +48,14 @@ buildExtensionECPointsFormat = BS.pack
   , 0x00 -- No compression
   ]
 
+buildExtensionSignatureAlgorithms :: ByteString
+buildExtensionSignatureAlgorithms = BS.pack
+  [ 0x00, 0x0d -- Signature algorithms extension
+  , 0x00, 0x04 -- 4 bytes of signature algorithms data follow
+  , 0x00, 0x02 -- 2 bytes of data in the algorithms list
+  , 0x04, 0x01 -- Assigned value for RSA/PKCS1/SHA256
+  ]
+
 clientSendHello :: Socket -> ByteString -> ByteString -> IO ()
 clientSendHello sock rand hostname = sendAll sock . addHandshakeRecordHeader . BS.pack $ mconcat
   [ [ 0x01 -- Client hello
@@ -68,6 +76,7 @@ clientSendHello sock rand hostname = sendAll sock . addHandshakeRecordHeader . B
           [ buildExtensionServerName hostname
           , buildExtensionSupportedGroups
           , buildExtensionECPointsFormat
+          , buildExtensionSignatureAlgorithms
           ]
 
 clientRecvHello :: Socket -> IO ByteString -- Assume server supports everything we request
