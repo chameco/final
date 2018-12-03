@@ -12,7 +12,7 @@ modExp base e n = go (mod base n) e 1
         go _ 0 acc = acc
         go base' e' acc = go (mod (base' ^ (2 :: Integer)) n) (shiftR e' 1) (if testBit e' 0 then mod (base' * acc) n else acc)
 
--- | Compute the modular inverse.
+-- | Compute the modular inverse using the extended Euclidean algorithm.
 modInv :: Integer -> Integer -> Integer
 modInv a m
   | inv < 0 = m + inv
