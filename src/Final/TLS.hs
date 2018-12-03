@@ -6,7 +6,6 @@ import Control.Monad
 
 import Data.Word (Word8, Word32)
 import Data.ByteString.Lazy (ByteString)
-import Data.Functor ((<&>))
 import qualified Data.ByteString.Lazy as BS
 
 import Numeric (showHex)
@@ -17,7 +16,7 @@ import Network.Socket hiding (recv)
 import Network.Socket.ByteString (recv)
 
 toHex :: ByteString -> String
-toHex = concatMap ((' ':) . pad . ($"") . showHex) . BS.unpack
+toHex = concatMap (pad . ($"") . showHex) . BS.unpack
   where pad [x] = '0':[x]
         pad x = x
   
