@@ -6,12 +6,12 @@ Dependencies:
 
 To compile, simply enter this repository and run
 
-  stack build --copy-bins --local-bin-path=.
+    stack build --copy-bins --local-bin-path=.
 
 This will create a binary file called "final".
 Running
 
-  ./final --help
+    ./final --help
 
 will provide information about each option and command. The most relevant
 commands are given here:
