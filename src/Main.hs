@@ -62,33 +62,43 @@ server port = bracket open Net.close $ (>>= body . fst) . Net.accept
       return sock
     body sock = do
       randomGen <- getStdGen >>= newMVar
+
+      -- Receive Client Hello
       (client_rand, _cipher_suites) <- serverRecvHello sock -- TODO Use returned list of cipher suites
+
+      -- Send Server Hello
       server_rand <- modifyMVar randomGen $ pure . swap . flip randomByteString 32
       let hello = serverBuildHello server_rand
       sendAll sock $ BS.toStrict hello
 
+      -- Server Key Exchange Generation
       priv <- pureModifyMVar randomGen generatePrivateKeyECDHE
       let pub = derivePublicKeyECDHE priv
           keyExchange = serverBuildKeyExchange pub
+      
+      -- Server Key Exchange
       sendAll sock $ BS.toStrict keyExchange
       
+      -- Server Hello Done
       sendAll sock $ BS.toStrict serverBuildHelloDone
 
+      -- Receive Client Key Exchange
       otherPub <- serverRecvKeyExchange sock
       let premaster = computeSharedSecretECDHE priv otherPub
           master = deriveMasterSecret server_rand client_rand premaster
           (_, server_key, _, server_iv) = expandMasterSecret server_rand client_rand premaster
-      
-      print master
+
+      -- Send Server Change Cipher Spec
       sendAll sock $ BS.toStrict buildChangeCipherSpec
 
       let verify_data = verify master "server finished" [hello, keyExchange, buildChangeCipherSpec]
-
-      let handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify_data
+          handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify_data
           sequence_number = 0
           aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length verify_data)
           nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) server_iv
       (ciphertext, tag) <- chaCha20Poly1305AEAD server_key nonce handshakeFinishedPlaintext aad
+
+      -- Send Server Handshake Finished
       let handshakeFinished = buildHandshakeFinished nonce $ ciphertext <> tag
       sendAll sock $ BS.toStrict handshakeFinished
 
@@ -103,39 +113,50 @@ client host port = do
   bracket (Net.socket (Net.addrFamily addr) (Net.addrSocketType addr) (Net.addrProtocol addr)) Net.close $ \sock -> do
     Net.connect sock $ Net.addrAddress addr
     randomGen <- getStdGen >>= newMVar
-    client_rand <- modifyMVar randomGen $ pure . swap . generatePrivateKeyECDHE
 
+    -- Send Client Hello
+    client_rand <- pureModifyMVar randomGen generatePrivateKeyECDHE
     let hello = clientBuildHello client_rand host
     sendAll sock $ BS.toStrict hello
 
+    -- Receive Server Hello
     server_rand <- clientRecvHello sock
 
+    -- Receive Server Key Exchange
     otherpub <- clientRecvKeyExchange sock
+
+    -- Client Key Exchange Generation
     priv <- pureModifyMVar randomGen generatePrivateKeyECDHE
     let pub = derivePublicKeyECDHE priv
         premaster = computeSharedSecretECDHE priv otherpub
         master = deriveMasterSecret server_rand client_rand premaster
         (client_key, _, client_iv, _) = expandMasterSecret server_rand client_rand premaster
 
-    print master
+    -- Receive Server Hello Done
     clientRecvHelloDone sock
 
+    -- Send Client Key Exchange
     let keyExchange = clientBuildKeyExchange pub
     sendAll sock $ BS.toStrict keyExchange
 
+    -- Send Client Change Cipher Spec
     sendAll sock $ BS.toStrict buildChangeCipherSpec
 
     let verify_data = verify master "client finished" [hello, keyExchange, buildChangeCipherSpec]
-
-    let handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify_data
+        handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify_data
         sequence_number = 0
         aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length verify_data)
         nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) client_iv
     (ciphertext, tag) <- chaCha20Poly1305AEAD client_key nonce handshakeFinishedPlaintext aad
+
+    -- Send Client Handshake Finished
     let handshakeFinished = buildHandshakeFinished nonce $ ciphertext <> tag
     sendAll sock $ BS.toStrict handshakeFinished
 
+    -- Receive Server Change Cipher Spec
     void $ recvChangeCipherSpec sock
+
+    -- Receive Server Handshake Finished
     void $ recvHandshakeFinished sock
 
 main :: IO ()
