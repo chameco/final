@@ -11,7 +11,7 @@ To compile, simply enter this repository and run
 This will create a binary file called "final".
 Running
 
-  ./crypto2 --help
+  ./final --help
 
 will provide information about each option and command. The most relevant
 commands are given here:
