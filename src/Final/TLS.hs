@@ -61,8 +61,8 @@ recvHandshake sock t = do
   (_, _, d) <- parseHandshakeHeader t handshake_data
   pure d
 
-serverBuildHello :: ByteString -> ByteString -> ByteString
-serverBuildHello rand hostname = addHandshakeRecordHeader . addHandshakeHeader 0x02 . BS.pack $ mconcat
+serverBuildHello :: ByteString -> ByteString
+serverBuildHello rand = addHandshakeRecordHeader . addHandshakeHeader 0x02 . BS.pack $ mconcat
   [ [ 0x03, 0x03 -- TLS 1.2
     ]
   , BS.unpack rand
@@ -70,8 +70,8 @@ serverBuildHello rand hostname = addHandshakeRecordHeader . addHandshakeHeader 0
     , 0xcc, 0xa8 -- Hardcoded to select TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
     , 0x00 -- Null compression method
     ]
-  , BS.unpack . integerToByteStringBE 2 . fromIntegral $ BS.length $ extensions hostname -- Length of extensions
-  , BS.unpack $ extensions hostname
+  -- , BS.unpack . integerToByteStringBE 2 . fromIntegral $ BS.length $ extensions hostname -- Length of extensions
+  -- , BS.unpack $ extensions hostname
   ]
 
 clientBuildHello :: ByteString -> ByteString -> ByteString
@@ -206,11 +206,11 @@ buildChangeCipherSpec = BS.pack
   , 0x01
   ]
 
-clientBuildHandshakeFinishedPlaintext :: ByteString -> ByteString
-clientBuildHandshakeFinishedPlaintext = addHandshakeHeader 0x14
+buildHandshakeFinishedPlaintext :: ByteString -> ByteString
+buildHandshakeFinishedPlaintext = addHandshakeHeader 0x14
 
-clientBuildHandshakeFinished :: ByteString -> ByteString -> ByteString
-clientBuildHandshakeFinished eiv ctext = addHandshakeRecordHeader $ mconcat
+buildHandshakeFinished :: ByteString -> ByteString -> ByteString
+buildHandshakeFinished eiv ctext = addHandshakeRecordHeader $ mconcat
   [ eiv
   , ctext
   ]
