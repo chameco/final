@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Concurrent (forkFinally)
 import Control.Concurrent.MVar
 import Control.Monad
 import Control.Monad.IO.Class
@@ -84,7 +85,9 @@ recvEncrypted sock sequence_number key = do
     Just d -> pure d
 
 server :: Options -> IO ()
-server o = bracket open Net.close $ (>>= body . fst) . Net.accept
+server o = bracket open Net.close $ \sock -> forever $ do
+  (conn, _) <- Net.accept sock
+  void . forkFinally (body conn) . const $ Net.close conn
   where
     open = do
       let hints = Net.defaultHints {Net.addrFlags = [Net.AI_PASSIVE], Net.addrSocketType = Net.Stream}
