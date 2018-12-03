@@ -1,10 +1,26 @@
 module Final.TLS where
 
-import Data.Word (Word8)
+import Control.Exception.Safe
+import Control.Monad.IO.Class
+import Control.Monad
+
+import Data.Word (Word8, Word32)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString as BS.S
+
+import Numeric (showHex)
 
 import Final.Utility.ByteString
+
+import Network.Socket hiding (recv)
+import Network.Socket.ByteString (recv)
+
+toHex :: ByteString -> String
+toHex = concatMap (($"") . showHex) . BS.unpack
+
+recvLazy :: MonadIO m => Int -> Socket -> m ByteString
+recvLazy n sock = liftIO (BS.pack . BS.S.unpack <$> recv sock n)
 
 addHandshakeRecordHeader :: ByteString -> ByteString
 addHandshakeRecordHeader d = BS.pack $ mconcat
@@ -15,12 +31,32 @@ addHandshakeRecordHeader d = BS.pack $ mconcat
   , BS.unpack d
   ]
 
+parseHandshakeRecordHeader :: MonadThrow m => ByteString -> m (Word8, (Word8, Word8), Word32)
+parseHandshakeRecordHeader d = case BS.unpack d of
+  [t, v1, v2, l1, l2] -> pure (t, (v1, v2), mergeWordsBE 0 0 l1 l2)
+  _ -> throwString $ mconcat ["Failed to parse handshake record header \"", toHex d, "\""]
+
 addHandshakeHeader :: Word8 -> ByteString -> ByteString
 addHandshakeHeader t d = BS.pack $ mconcat
   [ [ t
     ]
   , BS.unpack . integerToByteStringBE 3 . fromIntegral $ BS.length d
   ]
+
+parseHandshakeHeader :: MonadThrow m => Word8 -> ByteString -> m (Word8, Word32, ByteString)
+parseHandshakeHeader et d = case BS.unpack d of
+  (t:l1:l2:l3:rest) -> if et == t
+    then pure (t, mergeWordsBE 0 l1 l2 l3, BS.pack rest)
+    else throwString $ mconcat ["Expected handshake type \"", show et, "\" but received \"", show t, "\""]
+  _ -> throwString $ mconcat ["Failed to parse handshake header \"", toHex d, "\""]
+
+recvHandshake :: (MonadThrow m, MonadIO m) => Socket -> Word8 -> m ByteString
+recvHandshake sock t = do
+  record_data <- recvLazy 5 sock
+  (_, _, handshake_len) <- parseHandshakeRecordHeader record_data
+  handshake_data <- recvLazy (fromIntegral handshake_len) sock
+  (_, _, d) <- parseHandshakeHeader t handshake_data
+  pure d
 
 clientBuildHello :: ByteString -> ByteString -> ByteString
 clientBuildHello rand hostname = addHandshakeRecordHeader . addHandshakeHeader 0x01 . BS.pack $ mconcat
@@ -83,17 +119,27 @@ clientBuildHello rand hostname = addHandshakeRecordHeader . addHandshakeHeader 0
           , 0x00, 0x00 -- 0 bytes of SCT data follow
           ]
 
-clientParseHello :: ByteString -> () -- Assume server supports everything we request
-clientParseHello = undefined
+clientRecvHello :: (MonadThrow m, MonadIO m) => Socket -> m Word32 -- Assume server supports everything we request, return cipher suite
+clientRecvHello sock = do
+  hello_data <- recvHandshake sock 0x02
+  case BS.unpack hello_data of
+    (_:_:rest) -> case drop 32 rest of -- Drop random data for now
+      (_:cs1:cs2:_:_:_:_) -> pure $ mergeWordsBE 0 0 cs1 cs2
+      _ -> throwString $ mconcat ["Failed to parse server cipher suites \"", toHex . BS.pack $ drop 32 rest, "\""]
+    _ -> throwString $ mconcat ["Failed to parse server hello \"", toHex hello_data, "\""]
 
-clientParseCert :: ByteString -> ()
-clientParseCert = undefined
+clientParseCert :: (MonadThrow m, MonadIO m) => Socket -> m ()
+clientParseCert = void . flip recvHandshake 0x0b
 
-clientParseKey :: ByteString -> ByteString
-clientParseKey = undefined
+clientRecvKeyExchange :: (MonadThrow m, MonadIO m) => Socket -> m ByteString
+clientRecvKeyExchange sock = do
+  key_data <- recvHandshake sock 0x0c
+  case BS.unpack key_data of
+    (_:_:_:len:rest) -> pure . BS.pack $ take (fromIntegral len) rest
+    _ -> throwString $ mconcat ["Failed to parse server key \"", toHex key_data, "\""]
 
-clientParseHelloDone :: ByteString -> ()
-clientParseHelloDone = undefined
+clientRecvHelloDone :: (MonadThrow m, MonadIO m) => Socket -> m ()
+clientRecvHelloDone = void . flip recvHandshake 0x0e
 
 clientBuildKeyExchange :: ByteString -> ByteString
 clientBuildKeyExchange pub = addHandshakeRecordHeader . addHandshakeHeader 0x10 $ mconcat
@@ -109,14 +155,20 @@ clientBuildChangeCipherSpec = BS.pack
   , 0x01
   ]
 
+clientBuildHandshakeFinishedPlaintext :: ByteString -> ByteString
+clientBuildHandshakeFinishedPlaintext = addHandshakeHeader 0x14
+
 clientBuildHandshakeFinished :: ByteString -> ByteString -> ByteString
 clientBuildHandshakeFinished eiv ctext = addHandshakeRecordHeader $ mconcat
   [ eiv
   , ctext
   ]
 
-clientParseChangeCipherSpec :: ByteString -> ()
-clientParseChangeCipherSpec = undefined
+clientRecvChangeCipherSpec :: (MonadThrow m, MonadIO m) => Socket -> m ()
+clientRecvChangeCipherSpec = void . recvLazy 6
 
-clientParseHandshakeFinished :: ByteString -> ()
-clientParseHandshakeFinished = undefined
+clientRecvHandshakeFinished :: (MonadThrow m, MonadIO m) => Socket -> m ByteString
+clientRecvHandshakeFinished sock = do
+  record_data <- recvLazy 5 sock
+  (_, _, handshake_len) <- parseHandshakeRecordHeader record_data
+  recvLazy (fromIntegral handshake_len) sock
