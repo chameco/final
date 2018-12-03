@@ -215,7 +215,7 @@ main :: IO ()
 main = do
   opts <- execParser . flip info idm . (<**>helper) $ Options
     <$> option auto (long "port" <> metavar "PORT" <> value 3000 <> help "Port")
-    <*> option auto (long "host" <> metavar "HOST" <> value "127.0.0.1" <> help "Hostname")
+    <*> strOption (long "host" <> metavar "HOST" <> value "127.0.0.1" <> help "Hostname")
     <*> subparser (mconcat [ command "client" (info (pure client) idm)
                            , command "server" (info (pure server) idm)
                            ])
