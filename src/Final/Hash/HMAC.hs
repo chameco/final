@@ -1,3 +1,6 @@
+{-|
+Implement HMAC-SHA256 (which we use as PRF)
+|-}
 module Final.Hash.HMAC (hmac) where
 
 import Data.Bits (xor)
@@ -6,6 +9,7 @@ import qualified Data.ByteString.Lazy as BS
 
 import Final.Hash.SHA256 (sha256)
 
+-- | Given a key and a message, compute HMAC-SHA256
 hmac :: ByteString -> ByteString -> ByteString 
 hmac k m = sha256 $ mconcat
   [ BS.pack $ BS.zipWith xor k' opad

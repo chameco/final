@@ -1,3 +1,6 @@
+{-|
+Helper functions for modular arithmetic
+|-}
 module Final.Utility.Modular where
 
 import Data.Bits
@@ -9,6 +12,7 @@ modExp base e n = go (mod base n) e 1
         go _ 0 acc = acc
         go base' e' acc = go (mod (base' ^ (2 :: Integer)) n) (shiftR e' 1) (if testBit e' 0 then mod (base' * acc) n else acc)
 
+-- | Compute the modular inverse.
 modInv :: Integer -> Integer -> Integer
 modInv a m
   | inv < 0 = m + inv

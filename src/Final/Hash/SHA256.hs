@@ -1,3 +1,6 @@
+{-|
+Implement SHA256.
+|-}
 module Final.Hash.SHA256 (sha256) where
 
 import Data.Word
@@ -10,6 +13,7 @@ import Final.Utility.ByteString
 
 type HashValues = (Word32, Word32, Word32, Word32, Word32, Word32, Word32, Word32)
 
+-- | SHA256 round constants.
 roundConstants :: Vector Word32
 roundConstants =
   [ 0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5
@@ -56,5 +60,6 @@ mergeHashValues (h0, h1, h2, h3, h4, h5, h6, h7) =
   .|. shiftL (fromIntegral h6) 32
   .|. fromIntegral h7
 
+-- | Compute the SHA256 hash of the given bytes.
 sha256 :: ByteString -> ByteString
 sha256 = integerToByteStringBE 32 . mergeHashValues . foldl hashChunk (0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19) . padMessage

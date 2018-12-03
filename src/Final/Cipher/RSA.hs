@@ -1,3 +1,6 @@
+{-|
+Implement textbook (non-semantically-secure) RSA.
+|-}
 module Final.Cipher.RSA where
 
 import Data.ByteString.Lazy (ByteString)
@@ -39,6 +42,7 @@ encodeRSAPlaintext = mconcat . integersToByteStringsBE 0
 encodeRSACiphertext :: [Integer] -> ByteString
 encodeRSACiphertext = mconcat . integersToByteStringsBE 2048
 
+-- | Generate a RSA private key using Miller-Rabin.
 generatePrivateKeyRSA :: RandomGen g => g -> (ByteString, g)
 generatePrivateKeyRSA gen = if p == q
                             then generatePrivateKeyRSA gen''
@@ -47,6 +51,7 @@ generatePrivateKeyRSA gen = if p == q
         (q, gen'') = genPrimeBits gen' 1024
         (d, gen''') = genCoprime gen'' $ carmichaelTotient p q
 
+-- | Derive a public key from an RSA private key.
 derivePublicKeyRSA :: ByteString -> ByteString
 derivePublicKeyRSA bs = case decodeRSADecryptionKey bs of
   (d, p, q) -> encodeRSAEncryptionKey (modInv d $ carmichaelTotient p q, p * q)

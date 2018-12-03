@@ -1,3 +1,6 @@
+{-|
+Helper functions for working with prime numbers.
+|-}
 module Final.Utility.Prime where
 
 import Control.Arrow
@@ -35,6 +38,7 @@ genPrimeBits gen n
         (a, gen') = randomR (2 ^ n, 2 ^ (n + 1)) gen
         (p, gen'') = millerRabin gen' 40 a
 
+-- | Randomly generate a number coprime with the give number. 
 genCoprime :: forall (g :: Type). RandomGen g => g -> Integer -> (Integer, g)
 genCoprime gen n
   | gcd a n == 1 = (a, gen')
@@ -42,5 +46,6 @@ genCoprime gen n
   where a :: Integer
         (a, gen') = randomR (2, n - 1) gen
 
+-- | Compute the Carmichael totient λ of two numbers.
 carmichaelTotient :: Integer -> Integer -> Integer
 carmichaelTotient p q = lcm (p - 1) (q - 1)

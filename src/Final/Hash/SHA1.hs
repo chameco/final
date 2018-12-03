@@ -1,3 +1,6 @@
+{-|
+Implement SHA-1.
+|-}
 module Final.Hash.SHA1 (sha1) where
 
 import Data.Word
@@ -39,5 +42,6 @@ mergeHashValues (h0, h1, h2, h3, h4) =
   .|. shiftL (fromIntegral h3) 32
   .|. fromIntegral h4
 
+-- | Compute the SHA-1 hash of the given bytes.
 sha1 :: ByteString -> ByteString
 sha1 = integerToByteStringBE 20 . mergeHashValues . foldl hashChunk (0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0) . padMessage
