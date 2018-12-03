@@ -4,7 +4,7 @@ This module contains definitions for type-level crypto-systems (symmetric and pu
 -}
 module Final.Cipher
   ( Implementation(..)
-  , Cipher, EncryptionKey, DecryptionKey, Plaintext, Ciphertext, Impl, impl, name
+  , IDSymmetric, Cipher, EncryptionKey, DecryptionKey, Plaintext, Ciphertext, Impl, impl, name
   , Lookup(..)
   , constructLookup, usingCipher, encryptWithCipher, decryptWithCipher
   ) where

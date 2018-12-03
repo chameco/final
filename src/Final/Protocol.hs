@@ -19,6 +19,9 @@ import Final.Cipher.ChaCha20
 import Final.Hash as Hash
 import Final.Hash.SHA256
 import Final.Hash.SHA1 (SHA1)
+import Final.Protocol.CipherSuite
+import Final.Protocol.Fragmentation
+import Final.Protocol.Handshake
 import Final.Protocol.KeyExchange
 import Final.Utility.UInt as UInt
 import Final.Utility.Natural
@@ -35,32 +38,7 @@ import System.Random
 prettyPrint :: ByteString -> String
 prettyPrint = concat . map (flip showHex "") . BS.unpack
 
-type UInt24 = UInt (Add (Mul Ten Two) Four)
-
-cipher :: Cipher.Impl ChaCha20
-cipher = Cipher.impl
-
-prf :: Hash.Impl SHA256
-prf = Hash.impl
-
-kPad :: forall a. Hash a => ByteString -> ByteString
-kPad k
-  | kLen > b = hashWithF (Hash.impl @a) k
-  | otherwise = BS.append k $ BS.replicate (fromIntegral $ b - kLen) 0
-  where b = blockSize @a
-        kLen = toInteger $ BS.length k
-
--- TODO Incorrect values
-hmac :: forall a. Hash a => Hash.Impl a -> ByteString -> ByteString -> ByteString
-hmac h (kPad @a -> k) m = Prelude.foldr pad m ([0x5c, 0x36] :: [Word8])
-  where pad = (hashWithF h .) . BS.append . flip BS.map k . xor
-
--- p :: Hash.Impl a -> ByteString -> HashText a -> [HashText a]
--- p f secret seed = hash f 
---   where a :: [HashText a]
---         a = iterate (hash f secret) seed
-
--- testServer :: IO ()
+testServer :: IO ()
 testServer = withSocketsDo $ do
   randomGen <- getStdGen >>= newMVar
   bracket open close body
@@ -78,15 +56,11 @@ testServer = withSocketsDo $ do
     body sock = do
       (conn :: Socket, peer) <- accept sock
       putStrLn $ append "Connection from " (pack $ show peer)
-      full@(ClientDiffieHellmanPublic dh_p dh_g dh_Ys) <- decode . fromStrict <$> recv conn (2^15)
-      print full
-      (msg, privateKey) <- decode . fromStrict <$> recv conn (2^15)
-      putStrLn $ renderPlaintext cipher $ decrypt cipher privateKey msg
+      server conn
 
--- testClient :: IO ()
+testClient :: IO ()
 testClient = withSocketsDo $ do
-  randomGen <- getStdGen >>= newMVar
-  bracket open close $ talk randomGen
+  bracket open close client
   where
     resolve host port = do
       let hints = defaultHints {addrSocketType = Stream}
@@ -96,26 +70,20 @@ testClient = withSocketsDo $ do
       sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
       connect sock $ addrAddress addr
       return sock
-    talk randomGen sock = do
-      clientDiffieHellman sock randomGen
-      privateKey <- modifyMVar randomGen (pure . swap . generateDecryptionKey cipher)
-      let publicKey = deriveEncryptionKey cipher privateKey
-      msg <- Cipher.parsePlaintext cipher "Hello World"
-      send sock $ toStrict $ encode (encrypt cipher publicKey msg, privateKey)
 
-data ConnectionState = Temporary
-
-test :: IO ()
-test = do
-  currentState <- newMVar Temporary
-  pendingState <- newMVar Temporary
-  sock <- undefined
-  readPayload sock >>= \case
-    (Handshake HelloRequest) -> undefined -- TODO start handshake
-    (AlertMessage a) -> undefined -- TODO https://tools.ietf.org/html/rfc5246#section-7.2
-    (ApplicationData _) -> undefined -- TODO handle data with currentState
+server :: Socket -> IO ()
+server sock = do
+  let (CipherSuite _ encrypt decrypt) = getCipherSuite (0xCC, 0xA8)
+  msg <- fromStrict <$> recv sock (2^(15 :: Int))
+  decrypt (BS.replicate 32 10) msg >>= putStrLn
   pure ()
 
--- serverHello :: Socket -> IO Bool
--- serverHello sock = do
---   pure False
+client :: Socket -> IO ()
+client sock = do
+  let (CipherSuite _ encrypt decrypt) = getCipherSuite (0xCC, 0xA8)
+  msg <- encrypt (BS.replicate 32 10) "Hello World"
+  putStrLn msg
+  send sock $ toStrict msg
+  pure ()
+
+data ConnectionState = Temporary

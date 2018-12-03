@@ -7,7 +7,7 @@ import Data.ByteString.Lazy.Char8 (putStrLn)
 import Data.Binary
 import Data.Int (Int64)
 
-import Final.Protocol
+-- import Final.Protocol
 import Final.Protocol.Handshake
 import Final.Utility.Natural
 import Final.Utility.UInt
@@ -59,7 +59,7 @@ instance Binary TLSCiphertext
 toPlaintext :: ConnectionState -> ByteString -> TLSCiphertext -> Maybe TLSPlaintext
 toPlaintext = undefined
 
-data ConnectionState = ConnectionState {encrypt :: Encryption, decrypt :: Decryption, mac :: MAC}
+data ConnectionState = ConnectionState {encryptFunc :: Encryption, decryptFunc :: Decryption, mac :: MAC}
 -- nextMessage :: ConnectionState -> IO TLSPlaintext
 -- nextMessage 
 
