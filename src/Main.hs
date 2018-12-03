@@ -61,7 +61,6 @@ sendEncrypted sock sequence_number key eiv msg = if BS.length msg > 65535
   else let aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length msg)
            nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) eiv
        in do (ciphertext, tag) <- chaCha20Poly1305AEAD key nonce msg aad
-             liftIO . putStrLn $ mconcat ["Computed nonce \"", toHex nonce, "\" and AAD \"", toHex aad, "\""]
              liftIO . putStrLn $ mconcat ["Encrypted message to \"", toHex ciphertext
                                          , "\" with tag \"", toHex tag
                                          , "\" and IV \"", toHex eiv, "\""
@@ -78,7 +77,6 @@ recvEncrypted sock sequence_number key = do
                               , "\" tag \"" , toHex tag
                               , "\" and IV \"", toHex eiv, "\""
                               ]
-  liftIO . putStrLn $ mconcat ["Computed nonce \"", toHex nonce, "\" and AAD \"", toHex aad, "\""]
   md <- chaCha20Poly1305UnAEAD key nonce (ciphertext, tag) aad
   case md of
     Nothing -> throwString $ mconcat ["Failed to decrypt/validate ciphertext \"", toHex ciphertext, "\" with tag \"", toHex tag, "\""]
@@ -148,7 +146,7 @@ server o = bracket open Net.close $ \sock -> forever $ do
 
       let verify_data = verify master "server finished" [hello, keyExchange, buildChangeCipherSpec]
           handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify_data
-          sequence_number = 0
+          sequence_number = 1
           aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length verify_data)
           nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) server_iv
       (ciphertext, tag) <- chaCha20Poly1305AEAD server_key nonce handshakeFinishedPlaintext aad
@@ -186,14 +184,14 @@ server o = bracket open Net.close $ \sock -> forever $ do
           (_, _, vd) <- parseHandshakeHeader 0x14 d
           if vd /= remote_verify_data
             then throwString $ mconcat ["Expected verification data \"", toHex remote_verify_data, "\", received \"", toHex vd, "\""]
-            else putStrLn "Established encrypted channel!" >> serverLoop sock (server_key, client_key) 1 randstream
+            else putStrLn "Established encrypted channel!" >> serverLoop sock (server_key, client_key) 2 randstream
 
 serverLoop :: (MonadThrow m, MonadIO m) => Net.Socket -> (ByteString, ByteString) -> Integer -> ByteString -> m ()
 serverLoop sock keys@(server_key, client_key) sequence_number r = do
   let (eiv, r') = BS.splitAt 12 r
   d <- recvEncrypted sock sequence_number client_key
-  sendEncrypted sock sequence_number server_key eiv $ BS.reverse d
-  serverLoop sock keys (sequence_number + 1) r'
+  sendEncrypted sock (sequence_number + 1) server_key eiv $ BS.reverse d
+  serverLoop sock keys (sequence_number + 2) r'
 
 client :: Options -> IO ()
 client o = do
@@ -278,7 +276,7 @@ client o = do
                        , "\" and IV \"", toHex remote_eiv, "\""
                        ]
     let remote_verify_data = verify master "server finished" [serverBuildHello server_rand, serverBuildKeyExchange otherPub, buildChangeCipherSpec]
-        remote_sequence_number = 0
+        remote_sequence_number = 1
         remote_aad = integerToByteStringBE 8 remote_sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length remote_verify_data)
         remote_nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 remote_sequence_number) server_iv
     putStrLn $ mconcat ["Built remote verification data \"", toHex remote_verify_data, "\""]
@@ -290,16 +288,16 @@ client o = do
         (_, _, vd) <- parseHandshakeHeader 0x14 d
         if vd /= remote_verify_data
           then throwString $ mconcat ["Expected verification data \"", toHex remote_verify_data, "\", received \"", toHex vd, "\""]
-          else putStrLn "Established encrypted channel!" >> clientLoop sock (server_key, client_key) 1 randstream
+          else putStrLn "Established encrypted channel!" >> clientLoop sock (server_key, client_key) 2 randstream
 
 clientLoop :: (MonadThrow m, MonadIO m) => Net.Socket -> (ByteString, ByteString) -> Integer -> ByteString -> m ()
 clientLoop sock keys@(server_key, client_key) sequence_number r = do
   let (eiv, r') = BS.splitAt 12 r
   d <- liftIO (putStr "> " >> hFlush stdout >> getLine)
   sendEncrypted sock sequence_number client_key eiv . BS.pack $ fmap (fromIntegral . ord) d
-  resp <- recvEncrypted sock sequence_number server_key
+  resp <- recvEncrypted sock (sequence_number + 1) server_key
   liftIO . putStrLn . fmap (chr . fromIntegral) $ BS.unpack resp
-  clientLoop sock keys (sequence_number + 1) r'
+  clientLoop sock keys (sequence_number + 2) r'
 
 data Options = Options { port :: Integer
                        , host :: String
