@@ -43,6 +43,12 @@ expandMasterSecret server_rand client_rand master = (client_key, server_key, cli
         (server_key, rest') = BS.splitAt 32 rest
         (client_iv, server_iv) = BS.splitAt 12 $ BS.take 24 rest'
 
+verify :: ByteString -> ByteString -> [ByteString] -> ByteString
+verify master input messages = BS.take 12 p1
+  where seed = input <> sha256 (mconcat messages)
+        a1 = hmac master seed
+        p1 = hmac master (a1 <> seed)
+
 server :: Int -> IO ()
 server port = bracket open Net.close $ (>>= body . fst) . Net.accept
   where
@@ -61,28 +67,26 @@ server port = bracket open Net.close $ (>>= body . fst) . Net.accept
       let hello = serverBuildHello server_rand
       sendAll sock $ BS.toStrict hello
 
-      priv <- modifyMVar randomGen $ pure . swap . generatePrivateKeyECDHE
+      priv <- pureModifyMVar randomGen generatePrivateKeyECDHE
       let pub = derivePublicKeyECDHE priv
           keyExchange = serverBuildKeyExchange pub
       sendAll sock $ BS.toStrict keyExchange
       
       sendAll sock $ BS.toStrict serverBuildHelloDone
 
-      clientPub <- serverRecvKeyExchange sock
-      let premaster = computeSharedSecretECDHE priv clientPub
+      otherPub <- serverRecvKeyExchange sock
+      let premaster = computeSharedSecretECDHE priv otherPub
           master = deriveMasterSecret server_rand client_rand premaster
           (_, server_key, _, server_iv) = expandMasterSecret server_rand client_rand premaster
       
+      print master
       sendAll sock $ BS.toStrict buildChangeCipherSpec
 
-      let seed = "server finished" <> sha256 (mconcat [hello, keyExchange, buildChangeCipherSpec])
-          a1 = hmac master seed
-          p1 = hmac master (a1 <> seed)
-          verify = BS.take 12 p1
+      let verify_data = verify master "server finished" [hello, keyExchange, buildChangeCipherSpec]
 
-      let handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify
+      let handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify_data
           sequence_number = 0
-          aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length verify)
+          aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length verify_data)
           nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) server_iv
       (ciphertext, tag) <- chaCha20Poly1305AEAD server_key nonce handshakeFinishedPlaintext aad
       let handshakeFinished = buildHandshakeFinished nonce $ ciphertext <> tag
@@ -107,28 +111,25 @@ client host port = do
     server_rand <- clientRecvHello sock
 
     otherpub <- clientRecvKeyExchange sock
-    priv <- modifyMVar randomGen $ pure . swap . generatePrivateKeyECDHE
+    priv <- pureModifyMVar randomGen generatePrivateKeyECDHE
     let pub = derivePublicKeyECDHE priv
         premaster = computeSharedSecretECDHE priv otherpub
         master = deriveMasterSecret server_rand client_rand premaster
         (client_key, _, client_iv, _) = expandMasterSecret server_rand client_rand premaster
 
+    print master
     clientRecvHelloDone sock
 
     let keyExchange = clientBuildKeyExchange pub
     sendAll sock $ BS.toStrict keyExchange
 
-    let changeCipherSpec = buildChangeCipherSpec
-    sendAll sock $ BS.toStrict changeCipherSpec
+    sendAll sock $ BS.toStrict buildChangeCipherSpec
 
-    let seed = "client finished" <> sha256 (mconcat [hello, keyExchange, changeCipherSpec])
-        a1 = hmac master seed
-        p1 = hmac master (a1 <> seed)
-        verify = BS.take 12 p1
+    let verify_data = verify master "client finished" [hello, keyExchange, buildChangeCipherSpec]
 
-    let handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify
+    let handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify_data
         sequence_number = 0
-        aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length verify)
+        aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length verify_data)
         nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) client_iv
     (ciphertext, tag) <- chaCha20Poly1305AEAD client_key nonce handshakeFinishedPlaintext aad
     let handshakeFinished = buildHandshakeFinished nonce $ ciphertext <> tag
