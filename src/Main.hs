@@ -1,8 +1,10 @@
 module Main where
 
+import Control.Arrow (second)
 import Control.Monad
 import Control.Exception.Safe
 
+import Data.Bits (xor)
 import Data.Char (chr)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
@@ -27,6 +29,16 @@ deriveMasterSecret server_rand client_rand premaster = p1 <> BS.take 16 p2
         p1 = hmac premaster (a1 <> seed)
         p2 = hmac premaster (a2 <> seed)
 
+expandMasterSecret :: ByteString -> ByteString -> ByteString -> (ByteString, ByteString, ByteString, ByteString)
+expandMasterSecret server_rand client_rand master = (client_key, server_key, client_iv, server_iv)
+  where seed = "key expansion" <> server_rand <> client_rand
+        as = iterate (hmac master) seed
+        ps = hmac master . (<>seed) <$> as
+        material = BS.concat ps
+        (client_key, rest) = BS.splitAt 32 material
+        (server_key, rest') = BS.splitAt 32 rest
+        (client_iv, server_iv) = BS.splitAt 12 $ BS.take 24 rest'
+
 client :: ByteString -> Int -> IO ()
 client host port = do
   addr:_ <- Net.getAddrInfo
@@ -35,18 +47,19 @@ client host port = do
     (Just $ show port)
   bracket (Net.socket (Net.addrFamily addr) (Net.addrSocketType addr) (Net.addrProtocol addr)) Net.close $ \sock -> do
     Net.connect sock $ Net.addrAddress addr
-    (rand, gen) <- flip randomByteString 32 <$> getStdGen 
+    (client_rand, gen) <- flip randomByteString 32 <$> getStdGen 
 
-    let hello = clientBuildHello rand host
+    let hello = clientBuildHello client_rand host
     sendAll sock $ BS.toStrict hello
 
-    serverrand <- clientRecvHello sock
+    server_rand <- clientRecvHello sock
 
     otherpub <- clientRecvKeyExchange sock
     let (priv, gen') = generatePrivateKeyECDHE gen
         pub = derivePublicKeyECDHE priv
         premaster = computeSharedSecretECDHE priv otherpub
-        master = deriveMasterSecret serverrand rand premaster
+        master = deriveMasterSecret server_rand client_rand premaster
+        (client_key, server_key, client_iv, server_iv) = expandMasterSecret server_rand client_rand premaster
 
     clientRecvHelloDone sock
 
@@ -62,9 +75,15 @@ client host port = do
         verify = BS.take 12 p1
 
     let handshakeFinishedPlaintext = clientBuildHandshakeFinishedPlaintext verify
-    handshakeFinishedCiphertext <- chaCha20Poly1305AEAD cc20key cc20nonce handshakeFinishedPlaintex cc20aad
-    let handshakeFinished = clientBuildHandshakeFinished cc20nonce handshakeFinishedCiphertext
+        sequence_number = 0
+        aad = integerToByteStringBE 8 sequence_number <> handshakeFinishedPlaintext
+        nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) client_iv
+    (ciphertext, tag) <- chaCha20Poly1305AEAD client_key nonce handshakeFinishedPlaintext aad
+    let handshakeFinished = clientBuildHandshakeFinished nonce $ ciphertext <> tag
     sendAll sock $ BS.toStrict handshakeFinished
+
+    void $ recvChangeCipherSpec sock
+    void $ recvHandshakeFinished sock
 
 main :: IO ()
 main = undefined

@@ -218,8 +218,8 @@ clientBuildHandshakeFinished eiv ctext = addHandshakeRecordHeader $ mconcat
 recvChangeCipherSpec :: (MonadThrow m, MonadIO m) => Socket -> m ()
 recvChangeCipherSpec = void . recvLazy 6
 
-handshakeFinished :: (MonadThrow m, MonadIO m) => Socket -> m ByteString
-handshakeFinished sock = do
+recvHandshakeFinished :: (MonadThrow m, MonadIO m) => Socket -> m ByteString
+recvHandshakeFinished sock = do
   record_data <- recvLazy 5 sock
   (_, _, handshake_len) <- parseHandshakeRecordHeader record_data
   recvLazy (fromIntegral handshake_len) sock
