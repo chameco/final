@@ -7,7 +7,6 @@ import Control.Monad
 import Data.Word (Word8, Word32)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.ByteString as BS.S
 
 import Numeric (showHex)
 
@@ -17,10 +16,12 @@ import Network.Socket hiding (recv)
 import Network.Socket.ByteString (recv)
 
 toHex :: ByteString -> String
-toHex = concatMap (($"") . showHex) . BS.unpack
-
+toHex = concatMap ((' ':) . pad . ($"") . showHex) . BS.unpack
+  where pad [x] = '0':[x]
+        pad x = x
+  
 recvLazy :: MonadIO m => Int -> Socket -> m ByteString
-recvLazy n sock = liftIO (BS.pack . BS.S.unpack <$> recv sock n)
+recvLazy n sock = liftIO (BS.fromStrict <$> recv sock n)
 
 addHandshakeRecordHeader :: ByteString -> ByteString
 addHandshakeRecordHeader d = BS.pack $ mconcat
@@ -41,6 +42,7 @@ addHandshakeHeader t d = BS.pack $ mconcat
   [ [ t
     ]
   , BS.unpack . integerToByteStringBE 3 . fromIntegral $ BS.length d
+  , BS.unpack d
   ]
 
 parseHandshakeHeader :: MonadThrow m => Word8 -> ByteString -> m (Word8, Word32, ByteString)
