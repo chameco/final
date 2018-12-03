@@ -57,8 +57,14 @@ client host port = do
     sendAll sock $ BS.toStrict changeCipherSpec
 
     let seed = "client finished" <> sha256 (mconcat [hello, keyExchange, changeCipherSpec])
+        a1 = hmac master seed
+        p1 = hmac master (a1 <> seed)
+        verify = BS.take 12 p1
 
-    undefined
+    let handshakeFinishedPlaintext = clientBuildHandshakeFinishedPlaintext verify
+    handshakeFinishedCiphertext <- chaCha20Poly1305AEAD cc20key cc20nonce handshakeFinishedPlaintex cc20aad
+    let handshakeFinished = clientBuildHandshakeFinished cc20nonce handshakeFinishedCiphertext
+    sendAll sock $ BS.toStrict handshakeFinished
 
 main :: IO ()
 main = undefined
