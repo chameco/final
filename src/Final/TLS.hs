@@ -147,18 +147,16 @@ serverRecvHello sock = do
       _ -> throwString "No cipher suites provided"
     (_:_:_) -> throwString $ mconcat ["Unsupported TLS version"]
     _ -> throwString $ mconcat ["Failed to parse server hello"]
-  where readCipherSuites [] = pure $ []
+  where readCipherSuites [] = pure []
         readCipherSuites (0:x2:rest) = (fromIntegral x2 :) <$> readCipherSuites rest
         readCipherSuites (_:_:_) = undefined
         readCipherSuites _ = throwString "Failed to parse list of cipher suites"
 
-clientRecvHello :: (MonadThrow m, MonadIO m) => Socket -> m Word32 -- Assume server supports everything we request, return cipher suite
+clientRecvHello :: (MonadThrow m, MonadIO m) => Socket -> m ByteString -- Assume server supports everything we request, return cipher suite
 clientRecvHello sock = do
   hello_data <- recvHandshake sock 0x02
   case BS.unpack hello_data of
-    (_:_:rest) -> case drop 32 rest of -- Drop random data for now
-      (_:cs1:cs2:_:_:_:_) -> pure $ mergeWordsBE 0 0 cs1 cs2
-      _ -> throwString $ mconcat ["Failed to parse server cipher suite \"", toHex . BS.pack $ drop 32 rest, "\""]
+    (_:_:rest) -> pure . BS.pack $ take 32 rest -- Return random data
     _ -> throwString $ mconcat ["Failed to parse server hello \"", toHex hello_data, "\""]
 
 clientParseCert :: (MonadThrow m, MonadIO m) => Socket -> m ()

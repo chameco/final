@@ -19,11 +19,13 @@ import System.Random
 import qualified Network.Socket as Net
 import Network.Socket.ByteString (sendAll)
 
-deriveMasterSecret :: ByteString -> ByteString
-deriveMasterSecret = _deriveMasterSecret
-
-expandMasterSecret :: ByteString -> ByteString -> ByteString -> ByteString
-expandMasterSecret = _deriveMasterSecret
+deriveMasterSecret :: ByteString -> ByteString -> ByteString -> ByteString
+deriveMasterSecret server_rand client_rand premaster = p1 <> BS.take 16 p2
+  where seed = "master secret" <> client_rand <> server_rand
+        a1 = hmac premaster seed
+        a2 = hmac premaster a1
+        p1 = hmac premaster (a1 <> seed)
+        p2 = hmac premaster (a2 <> seed)
 
 client :: ByteString -> Int -> IO ()
 client host port = do
@@ -44,17 +46,17 @@ client host port = do
     let (priv, gen') = generatePrivateKeyECDHE gen
         pub = derivePublicKeyECDHE priv
         premaster = computeSharedSecretECDHE priv otherpub
-        master = expandMasterSecret serverrand rand $ deriveMasterSecret premaster
+        master = deriveMasterSecret serverrand rand premaster
 
     clientRecvHelloDone sock
 
     let keyExchange = clientBuildKeyExchange pub
     sendAll sock $ BS.toStrict keyExchange
 
-    let changeCipherSpec = clientBuildChangeCipherSpec
+    let changeCipherSpec = buildChangeCipherSpec
     sendAll sock $ BS.toStrict changeCipherSpec
 
-    let seed = "client finished" + sha256 (mconcat [hello, keyExchange, changeCipherSpec])
+    let seed = "client finished" <> sha256 (mconcat [hello, keyExchange, changeCipherSpec])
 
     undefined
 
