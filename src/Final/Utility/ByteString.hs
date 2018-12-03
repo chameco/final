@@ -10,6 +10,8 @@ import qualified Data.ByteString.Lazy as BS
 import Data.Vector (Vector)
 import qualified Data.Vector as V (fromList)
 
+import Numeric (showHex)
+
 import System.Random
 
 rep :: Integer -> [Word8]
@@ -118,3 +120,8 @@ padMessage bs = fmap (V.fromList . unpackWord32BE) $ splitEvery 64 $ bs <> paddi
         len = integerToByteStringBE 8
               . flip (mod :: Integer -> Integer -> Integer) (((^) :: Integer -> Integer -> Integer) 2 64)
               . (*8) . fromIntegral $ BS.length bs
+
+toHex :: ByteString -> String
+toHex = concatMap (pad . ($"") . showHex) . BS.unpack
+  where pad [x] = '0':[x]
+        pad x = x

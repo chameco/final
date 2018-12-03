@@ -14,7 +14,7 @@ import Final.Utility.ByteString
 import Final.Hash.SHA256 (sha256)
 import Final.Hash.HMAC (hmac)
 import Final.Cipher.ECC (generatePrivateKeyECDHE, derivePublicKeyECDHE, computeSharedSecretECDHE)
-import Final.Cipher.ChaCha20 (chaCha20Poly1305AEAD)
+import Final.Cipher.ChaCha20 (chaCha20Poly1305AEAD, chaCha20Poly1305UnAEAD)
 import Final.TLS
 
 import System.Random
@@ -121,11 +121,37 @@ server o = bracket open Net.close $ (>>= body . fst) . Net.accept
       putStrLn $ mconcat ["Encrypted verification data to \"", toHex ciphertext, "\" with MAC \"", toHex tag, "\""]
 
       -- Send Server Handshake Finished
-      let handshakeFinished = buildHandshakeFinished nonce $ ciphertext <> tag
+      let handshakeFinished = buildHandshakeFinished nonce $ tag <> ciphertext
       sendAll sock $ BS.toStrict handshakeFinished
       putStrLn $ mconcat ["Sent ServerHandshakeFinished \"", toHex handshakeFinished, "\""]
 
-      pure ()
+      -- Receive Client Change Cipher Spec
+      void $ recvChangeCipherSpec sock
+      putStrLn "Received ClientChangeCipherspec"
+
+      (remote_eiv, remote_rest) <- BS.splitAt 12 <$> recvHandshakeFinished sock
+      let (remote_tag, remote_ciphertext) = BS.splitAt 16 remote_rest
+      putStrLn $ mconcat ["Received ClientHandshakeFinished with ciphertext \"", toHex remote_ciphertext
+                         , "\" tag \"" , toHex remote_tag
+                         , "\" and IV \"", toHex remote_eiv, "\""
+                         ]
+      let remote_verify_data = verify master "client finished" [clientBuildHello client_rand (BS.pack . fmap (fromIntegral . ord) $ host o)
+                                                               , clientBuildKeyExchange otherPub
+                                                               , buildChangeCipherSpec
+                                                               ]
+          remote_sequence_number = 0
+          remote_aad = integerToByteStringBE 8 remote_sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length remote_verify_data)
+          remote_nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 remote_sequence_number) client_iv
+      putStrLn $ mconcat ["Built remote verification data \"", toHex remote_verify_data, "\""]
+      remote_msg <- chaCha20Poly1305UnAEAD client_key remote_nonce (remote_ciphertext, remote_tag) remote_aad
+      case remote_msg of
+        Nothing -> throwString "Failed to decrypt ServerHandshakefinished ciphertext!"
+        Just d -> do
+          putStrLn $ mconcat ["Decrypted ClientHandshakeFinished ciphertext to \"", toHex d, "\""]
+          (_, _, vd) <- parseHandshakeHeader 0x14 d
+          if vd /= remote_verify_data
+            then throwString $ mconcat ["Expected verification data \"", toHex remote_verify_data, "\", received \"", toHex vd, "\""]
+            else do putStrLn "Established encrypted channel!"
 
 client :: Options -> IO ()
 client o = do
@@ -185,16 +211,16 @@ client o = do
     putStrLn $ mconcat ["Sent ClientChangeCipherSpec \"", toHex buildChangeCipherSpec, "\""]
 
     let verify_data = verify master "client finished" [hello, keyExchange, buildChangeCipherSpec]
-        handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify_data
         sequence_number = 0
         aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length verify_data)
         nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) client_iv
+        handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify_data
     (ciphertext, tag) <- chaCha20Poly1305AEAD client_key nonce handshakeFinishedPlaintext aad
     putStrLn $ mconcat ["Built verification data \"", toHex verify_data, "\""]
     putStrLn $ mconcat ["Encrypted verification data to \"", toHex ciphertext, "\" with MAC \"", toHex tag, "\""]
 
     -- Send Client Handshake Finished
-    let handshakeFinished = buildHandshakeFinished nonce $ ciphertext <> tag
+    let handshakeFinished = buildHandshakeFinished nonce $ tag <> ciphertext
     sendAll sock $ BS.toStrict handshakeFinished
     putStrLn $ mconcat ["Sent ClientHandshakeFinished \"", toHex handshakeFinished, "\""]
 
@@ -203,8 +229,26 @@ client o = do
     putStrLn "Received ServerChangeCipherspec"
 
     -- Receive Server Handshake Finished
-    void $ recvHandshakeFinished sock
-    putStrLn "Received ServerHandshakeFinished"
+    (remote_eiv, remote_rest) <- BS.splitAt 12 <$> recvHandshakeFinished sock
+    let (remote_tag, remote_ciphertext) = BS.splitAt 16 remote_rest
+    putStrLn $ mconcat ["Received ServerHandshakeFinished with ciphertext \"", toHex remote_ciphertext
+                       , "\" tag \"" , toHex remote_tag
+                       , "\" and IV \"", toHex remote_eiv, "\""
+                       ]
+    let remote_verify_data = verify master "server finished" [serverBuildHello server_rand, serverBuildKeyExchange otherPub, buildChangeCipherSpec]
+        remote_sequence_number = 0
+        remote_aad = integerToByteStringBE 8 remote_sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length remote_verify_data)
+        remote_nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 remote_sequence_number) server_iv
+    putStrLn $ mconcat ["Built remote verification data \"", toHex remote_verify_data, "\""]
+    remote_msg <- chaCha20Poly1305UnAEAD server_key remote_nonce (remote_ciphertext, remote_tag) remote_aad
+    case remote_msg of
+      Nothing -> throwString "Failed to decrypt ServerHandshakefinished ciphertext!"
+      Just d -> do
+        putStrLn $ mconcat ["Decrypted ServerHandshakeFinished ciphertext to \"", toHex d, "\""]
+        (_, _, vd) <- parseHandshakeHeader 0x14 d
+        if vd /= remote_verify_data
+          then throwString $ mconcat ["Expected verification data \"", toHex remote_verify_data, "\", received \"", toHex vd, "\""]
+          else do putStrLn "Established encrypted channel!"
 
 data Options = Options { port :: Integer
                        , host :: String
