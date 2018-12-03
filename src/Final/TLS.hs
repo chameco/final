@@ -147,18 +147,22 @@ extensionSCT = BS.pack
   , 0x00, 0x00 -- 0 bytes of SCT data follow
   ]
 
-serverRecvHello :: forall m. (MonadThrow m, MonadIO m) => Socket -> m (ByteString, [Word32]) -- Return list of supported cipher suites
+type CipherSuite = (Word8, Word8)
+
+serverRecvHello :: forall m. (MonadThrow m, MonadIO m) => Socket -> m (ByteString, [CipherSuite]) -- Return list of supported cipher suites
 serverRecvHello sock = do
-  (recvHandshake sock 0x01 <&> BS.unpack) >>= \case
+  helloMsg <- recvHandshake sock 0x01
+  case BS.unpack helloMsg of
     (0x03 : 0x03 : rest) -> readRandomBytes $ splitAt 32 rest
     (_:_:_) -> throwString $ mconcat ["Unsupported TLS version"]
     _ -> throwString $ mconcat ["Failed to parse server hello"]
-  where readRandomBytes :: ([Word8], [Word8]) -> m (ByteString, [Word32])
-        readRandomBytes (rand, cipherSuites) = (BS.pack rand,) <$> readCipherSuites (drop 3 cipherSuites)
-        readCipherSuites :: MonadThrow m => [Word8] -> m [Word32]
+  where readRandomBytes :: ([Word8], [Word8]) -> m (ByteString, [CipherSuite])
+        readRandomBytes (rand, _:cipherSuites) = (BS.pack rand,) <$> readCipherSuites (drop 3 cipherSuites)
+        readRandomBytes _ = throwString "Missing cipher suites after Session ID byte"
+        readCipherSuites :: [Word8] -> m [CipherSuite]
         readCipherSuites [] = pure []
-        readCipherSuites (0:x2:rest) = (fromIntegral x2 :) <$> readCipherSuites rest
-        readCipherSuites (a:b:c) = throwString $ show (a,b,c)
+        readCipherSuites (x1:x2:rest) = ((x1,x2) :) <$> readCipherSuites rest
+        -- readCipherSuites (a:b:c) = throwString $ show (a,b,c)
         readCipherSuites _ = throwString "Failed to parse list of cipher suites"
 
 clientRecvHello :: (MonadThrow m, MonadIO m) => Socket -> m ByteString -- Assume server supports everything we request, return cipher suite
