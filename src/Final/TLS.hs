@@ -56,6 +56,19 @@ buildExtensionSignatureAlgorithms = BS.pack
   , 0x04, 0x01 -- Assigned value for RSA/PKCS1/SHA256
   ]
 
+buildExtensionRenegotiationInfo :: ByteString
+buildExtensionRenegotiationInfo = BS.pack
+  [ 0xff, 0x01 -- Renegotiation info extension
+  , 0x00, 0x01 -- 1 byte of renegotiation info data follows
+  , 0x00 -- This is a new connection
+  ]
+
+buildExtensionSCT :: ByteString
+buildExtensionSCT = BS.pack
+  [ 0x00, 0x12 -- SCT extension
+  , 0x00, 0x00 -- 0 bytes of SCT data follow
+  ]
+
 clientSendHello :: Socket -> ByteString -> ByteString -> IO ()
 clientSendHello sock rand hostname = sendAll sock . addHandshakeRecordHeader . BS.pack $ mconcat
   [ [ 0x01 -- Client hello
@@ -77,6 +90,8 @@ clientSendHello sock rand hostname = sendAll sock . addHandshakeRecordHeader . B
           , buildExtensionSupportedGroups
           , buildExtensionECPointsFormat
           , buildExtensionSignatureAlgorithms
+          , buildExtensionRenegotiationInfo
+          , buildExtensionSCT
           ]
 
 clientRecvHello :: Socket -> IO ByteString -- Assume server supports everything we request
