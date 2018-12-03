@@ -71,6 +71,12 @@ recvHandshake sock t = do
   (_, _, d) <- parseHandshakeHeader t handshake_data
   pure d
 
+recvApplicationData :: (MonadThrow m, MonadIO m) => Socket -> m ByteString
+recvApplicationData sock = do
+  record_data <- recvLazy 5 sock
+  (_, _, data_len) <- parseApplicationDataRecordHeader record_data
+  recvLazy (fromIntegral data_len) sock
+
 serverBuildHello :: ByteString -> ByteString
 serverBuildHello rand = addHandshakeRecordHeader . addHandshakeHeader 0x02 . BS.pack $ mconcat
   [ [ 0x03, 0x03 -- TLS 1.2
