@@ -34,10 +34,18 @@ buildExtensionServerName hostname = BS.pack $ mconcat
 
 buildExtensionSupportedGroups :: ByteString
 buildExtensionSupportedGroups = BS.pack
-  [ 0x00, 0x0b -- Supported groups extension
-  , 0x00, 0x04 -- 4 bytes of status request data follow
+  [ 0x00, 0x0a -- Supported groups extension
+  , 0x00, 0x04 -- 4 bytes of supported groups data follow
   , 0x00, 0x02 -- 2 bytes of data in the supported groups list
   , 0x00, 0x1d -- Assigned value for x25519
+  ]
+
+buildExtensionECPointsFormat :: ByteString
+buildExtensionECPointsFormat = BS.pack
+  [ 0x00, 0x0b -- EC points format extension
+  , 0x00, 0x02 -- 2 bytes of EC points format data follow
+  , 0x01 -- 1 byte of data in the supported groups list
+  , 0x00 -- No compression
   ]
 
 clientSendHello :: Socket -> ByteString -> ByteString -> IO ()
@@ -59,6 +67,7 @@ clientSendHello sock rand hostname = sendAll sock . addHandshakeRecordHeader . B
   where extensions = mconcat
           [ buildExtensionServerName hostname
           , buildExtensionSupportedGroups
+          , buildExtensionECPointsFormat
           ]
 
 clientRecvHello :: Socket -> IO ByteString -- Assume server supports everything we request
