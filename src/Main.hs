@@ -76,7 +76,7 @@ client host port = do
 
     let handshakeFinishedPlaintext = clientBuildHandshakeFinishedPlaintext verify
         sequence_number = 0
-        aad = integerToByteStringBE 8 sequence_number <> handshakeFinishedPlaintext
+        aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length verify)
         nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) client_iv
     (ciphertext, tag) <- chaCha20Poly1305AEAD client_key nonce handshakeFinishedPlaintext aad
     let handshakeFinished = clientBuildHandshakeFinished nonce $ ciphertext <> tag
