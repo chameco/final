@@ -7,7 +7,7 @@ import Data.Maybe (fromJust)
 import Data.Word (Word8)
 
 import Final.Cipher as Cipher
-import Final.Cipher.RSA
+-- import Final.Cipher.RSA
 import Final.Cipher.ChaCha20
 import Final.Hash as Hash
 import Final.Hash.SHA256
@@ -18,9 +18,9 @@ data CipherSuite m = CipherSuite {  suiteName :: String
                                  }
 
 createSuite :: forall a b m. (Cipher a, Hash b, MonadThrow m) => String -> CipherSuite m
-createSuite name = CipherSuite name (encryptWithCipher cipher) (decryptWithCipher cipher)
+createSuite n = CipherSuite n (encryptWithCipher cipher) (decryptWithCipher cipher)
   where cipher = Cipher.impl @a
-        hash = Hash.impl @b
+        -- hash = Hash.impl @b
 
 getCipherSuite :: forall m. MonadThrow m => (Word8, Word8) -> CipherSuite m
 getCipherSuite = fromJust . flip lookup

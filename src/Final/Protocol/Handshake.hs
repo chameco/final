@@ -2,22 +2,12 @@ module Final.Protocol.Handshake where
 
 import Control.Applicative
 import Control.Concurrent.MVar
-import Control.Exception (bracket)
 
 import Data.Binary
-import Data.ByteString.Lazy (ByteString)
-import Data.ByteString.Lazy.Char8 hiding (head, map, concat)
 import qualified Data.ByteString.Lazy as BS
 import Data.Functor ((<&>))
-import Data.List
-import Data.Tuple (swap)
 import Data.Word (Word32)
 
-import Final.Cipher as Cipher
-import Final.Cipher.RSA
-import Final.Hash as Hash
-import Final.Hash.SHA256
-import Final.Utility.UInt as UInt
 import Final.Utility.Natural
 import Final.Utility.Vector as Vec
 
@@ -25,8 +15,6 @@ import GHC.Generics (Generic)
 
 import Network.Socket hiding (send, recv)
 import Network.Socket.ByteString
-
-import Numeric (showHex)
 
 import Prelude hiding (putStrLn)
 

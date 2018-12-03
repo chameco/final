@@ -3,7 +3,6 @@ module Final.Protocol.Fragmentation where
 import Control.Monad
 
 import Data.ByteString.Lazy as BS hiding (putStrLn)
-import Data.ByteString.Lazy.Char8 (putStrLn)
 import Data.Binary
 import Data.Int (Int64)
 
@@ -15,7 +14,6 @@ import Final.Utility.UInt
 import GHC.Generics (Generic)
 
 import Network.Socket (Socket)
-import Network.Socket.ByteString
 
 import Prelude hiding (putStrLn)
 

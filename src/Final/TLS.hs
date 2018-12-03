@@ -89,6 +89,7 @@ clientBuildHello rand hostname = addHandshakeRecordHeader . addHandshakeHeader 0
   , BS.unpack $ extensions hostname
   ]
 
+extensions :: ByteString -> ByteString
 extensions hostname = mconcat
   [ extensionServerName hostname
   , extensionSupportedGroups
@@ -98,6 +99,7 @@ extensions hostname = mconcat
   , extensionSCT
   ]
 
+extensionServerName :: ByteString -> ByteString
 extensionServerName hostname = BS.pack $ mconcat
   [ [0x00, 0x00] -- Server name extension
   , BS.unpack . integerToByteStringBE 2 $ (len + 5) -- Length of extension data
@@ -108,6 +110,7 @@ extensionServerName hostname = BS.pack $ mconcat
   ]
   where len = fromIntegral $ BS.length hostname
 
+extensionSupportedGroups :: ByteString
 extensionSupportedGroups = BS.pack
   [ 0x00, 0x0a -- Supported groups extension
   , 0x00, 0x04 -- 4 bytes of supported groups data follow
@@ -115,6 +118,7 @@ extensionSupportedGroups = BS.pack
   , 0x00, 0x1d -- Assigned value for x25519
   ]
 
+extensionECPointsFormat :: ByteString
 extensionECPointsFormat = BS.pack
   [ 0x00, 0x0b -- EC points format extension
   , 0x00, 0x02 -- 2 bytes of EC points format data follow
@@ -122,6 +126,7 @@ extensionECPointsFormat = BS.pack
   , 0x00 -- No compression
   ]
 
+extensionSignatureAlgorithms :: ByteString
 extensionSignatureAlgorithms = BS.pack
   [ 0x00, 0x0d -- Signature algorithms extension
   , 0x00, 0x04 -- 4 bytes of signature algorithms data follow
@@ -129,27 +134,31 @@ extensionSignatureAlgorithms = BS.pack
   , 0x04, 0x01 -- Assigned value for RSA/PKCS1/SHA256
   ]
 
+extensionRenegotiationInfo :: ByteString
 extensionRenegotiationInfo = BS.pack
   [ 0xff, 0x01 -- Renegotiation info extension
   , 0x00, 0x01 -- 1 byte of renegotiation info data follows
   , 0x00 -- This is a new connection
   ]
+
+extensionSCT :: ByteString
 extensionSCT = BS.pack
   [ 0x00, 0x12 -- SCT extension
   , 0x00, 0x00 -- 0 bytes of SCT data follow
   ]
 
-serverRecvHello :: (MonadThrow m, MonadIO m) => Socket -> m [Word32] -- Return list of supported cipher suites
+serverRecvHello :: forall m. (MonadThrow m, MonadIO m) => Socket -> m (ByteString, [Word32]) -- Return list of supported cipher suites
 serverRecvHello sock = do
   (recvHandshake sock 0x01 <&> BS.unpack) >>= \case
-    (0x03 : 0x03 : rest) -> case drop (32+1) rest of -- Drop random data and session id for now
-      (_ : cipherSuites) -> readCipherSuites cipherSuites
-      _ -> throwString "No cipher suites provided"
+    (0x03 : 0x03 : rest) -> readRandomBytes $ splitAt 32 rest
     (_:_:_) -> throwString $ mconcat ["Unsupported TLS version"]
     _ -> throwString $ mconcat ["Failed to parse server hello"]
-  where readCipherSuites [] = pure []
+  where readRandomBytes :: ([Word8], [Word8]) -> m (ByteString, [Word32])
+        readRandomBytes (rand, cipherSuites) = (BS.pack rand,) <$> readCipherSuites (drop 3 cipherSuites)
+        readCipherSuites :: MonadThrow m => [Word8] -> m [Word32]
+        readCipherSuites [] = pure []
         readCipherSuites (0:x2:rest) = (fromIntegral x2 :) <$> readCipherSuites rest
-        readCipherSuites (_:_:_) = undefined
+        readCipherSuites (a:b:c) = throwString $ show (a,b,c)
         readCipherSuites _ = throwString "Failed to parse list of cipher suites"
 
 clientRecvHello :: (MonadThrow m, MonadIO m) => Socket -> m ByteString -- Assume server supports everything we request, return cipher suite

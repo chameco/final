@@ -1,11 +1,12 @@
 module Main where
 
-import Control.Arrow (second)
+import Control.Concurrent.MVar
 import Control.Monad
 import Control.Exception.Safe
 
 import Data.Bits (xor)
 import Data.Char (chr)
+import Data.Tuple (swap)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 
@@ -13,13 +14,16 @@ import Final.Utility.ByteString
 import Final.Hash.SHA256 (sha256)
 import Final.Hash.HMAC (hmac)
 import Final.Cipher.ECC (generatePrivateKeyECDHE, derivePublicKeyECDHE, computeSharedSecretECDHE)
-import Final.Cipher.ChaCha20 (chaCha20Poly1305AEAD, chaCha20Poly1305UnAEAD)
+import Final.Cipher.ChaCha20 (chaCha20Poly1305AEAD)
 import Final.TLS
 
 import System.Random
 
 import qualified Network.Socket as Net
 import Network.Socket.ByteString (sendAll)
+
+pureModifyMVar :: MVar g -> (g -> (b, g)) -> IO b
+pureModifyMVar v f = modifyMVar v $ pure . swap . f
 
 deriveMasterSecret :: ByteString -> ByteString -> ByteString -> ByteString
 deriveMasterSecret server_rand client_rand premaster = p1 <> BS.take 16 p2
@@ -51,28 +55,36 @@ server port = bracket open Net.close $ (>>= body . fst) . Net.accept
       Net.listen sock 10
       return sock
     body sock = do
-      _ <- serverRecvHello sock -- TODO Use returned list of cipher suites
-      (rand, gen) <- flip randomByteString 32 <$> getStdGen
-      let hello = serverBuildHello rand
+      randomGen <- getStdGen >>= newMVar
+      (client_rand, _cipher_suites) <- serverRecvHello sock -- TODO Use returned list of cipher suites
+      server_rand <- modifyMVar randomGen $ pure . swap . flip randomByteString 32
+      let hello = serverBuildHello server_rand
       sendAll sock $ BS.toStrict hello
 
-      let (priv, gen') = generatePrivateKeyECDHE gen
+      priv <- modifyMVar randomGen $ pure . swap . generatePrivateKeyECDHE
       let pub = derivePublicKeyECDHE priv
-      let keyExchange = serverBuildKeyExchange pub
+          keyExchange = serverBuildKeyExchange pub
       sendAll sock $ BS.toStrict keyExchange
       
       sendAll sock $ BS.toStrict serverBuildHelloDone
 
       clientPub <- serverRecvKeyExchange sock
-      let sharedSecret = computeSharedSecretECDHE priv clientPub
-
+      let premaster = computeSharedSecretECDHE priv clientPub
+          master = deriveMasterSecret server_rand client_rand premaster
+          (_, server_key, _, server_iv) = expandMasterSecret server_rand client_rand premaster
+      
       sendAll sock $ BS.toStrict buildChangeCipherSpec
+
+      let seed = "server finished" <> sha256 (mconcat [hello, keyExchange, buildChangeCipherSpec])
+          a1 = hmac master seed
+          p1 = hmac master (a1 <> seed)
+          verify = BS.take 12 p1
 
       let handshakeFinishedPlaintext = buildHandshakeFinishedPlaintext verify
           sequence_number = 0
           aad = integerToByteStringBE 8 sequence_number <> BS.pack [0x16, 0x03, 0x03] <> integerToByteStringBE 2 (fromIntegral $ BS.length verify)
-          nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) client_iv
-      (ciphertext, tag) <- chaCha20Poly1305AEAD client_key nonce handshakeFinishedPlaintext aad
+          nonce = BS.pack $ BS.zipWith xor (integerToByteStringBE 12 sequence_number) server_iv
+      (ciphertext, tag) <- chaCha20Poly1305AEAD server_key nonce handshakeFinishedPlaintext aad
       let handshakeFinished = buildHandshakeFinished nonce $ ciphertext <> tag
       sendAll sock $ BS.toStrict handshakeFinished
 
@@ -86,7 +98,8 @@ client host port = do
     (Just $ show port)
   bracket (Net.socket (Net.addrFamily addr) (Net.addrSocketType addr) (Net.addrProtocol addr)) Net.close $ \sock -> do
     Net.connect sock $ Net.addrAddress addr
-    (client_rand, gen) <- flip randomByteString 32 <$> getStdGen 
+    randomGen <- getStdGen >>= newMVar
+    client_rand <- modifyMVar randomGen $ pure . swap . generatePrivateKeyECDHE
 
     let hello = clientBuildHello client_rand host
     sendAll sock $ BS.toStrict hello
@@ -94,11 +107,11 @@ client host port = do
     server_rand <- clientRecvHello sock
 
     otherpub <- clientRecvKeyExchange sock
-    let (priv, gen') = generatePrivateKeyECDHE gen
-        pub = derivePublicKeyECDHE priv
+    priv <- modifyMVar randomGen $ pure . swap . generatePrivateKeyECDHE
+    let pub = derivePublicKeyECDHE priv
         premaster = computeSharedSecretECDHE priv otherpub
         master = deriveMasterSecret server_rand client_rand premaster
-        (client_key, server_key, client_iv, server_iv) = expandMasterSecret server_rand client_rand premaster
+        (client_key, _, client_iv, _) = expandMasterSecret server_rand client_rand premaster
 
     clientRecvHelloDone sock
 
