@@ -1,4 +1,4 @@
-module Final.Hash.HMAC where
+module Final.Hash.HMAC (hmac) where
 
 import Data.Bits (xor)
 import Data.ByteString.Lazy (ByteString)

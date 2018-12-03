@@ -40,11 +40,6 @@ integerToByteStringBE padding = BS.pack . pad . reverse . rep
         pad l | length l >= padding = l
               | otherwise = pad (0:l)
 
-padByteString :: Int -> ByteString -> ByteString
-padByteString padding bs | BS.length bs >= p = bs
-                         | otherwise = padByteString padding ("0" <> bs)
-  where p = fromIntegral padding
-
 splitEvery :: Int -> ByteString -> [ByteString]
 splitEvery n bs
   | BS.length bs <= fromIntegral n = [bs]

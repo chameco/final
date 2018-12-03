@@ -1,16 +1,11 @@
-module Final.Hash.SHA256 where
+module Final.Hash.SHA256 (sha256) where
 
-import Numeric (showHex)
-
-import Data.Char (ord)
 import Data.Word
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as BS
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
 
-import Final.Hash
 import Final.Utility.ByteString
 
 type HashValues = (Word32, Word32, Word32, Word32, Word32, Word32, Word32, Word32)
@@ -50,9 +45,6 @@ hashChunk hs@(h0, h1, h2, h3, h4, h5, h6, h7) msg = (h0 + a, h1 + b, h2 + c, h3 
                 maj = (a' .&. b') `xor` (a' .&. c') `xor` (b' .&. c')
                 temp2 = s0 + maj
 
-sha256 :: ByteString -> ByteString
-sha256 = integerToByteStringBE 32 . mergeHashValues . foldl hashChunk (0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19) . padMessage
-
 mergeHashValues :: HashValues -> Integer
 mergeHashValues (h0, h1, h2, h3, h4, h5, h6, h7) =
   shiftL (fromIntegral h0) 224
@@ -64,14 +56,5 @@ mergeHashValues (h0, h1, h2, h3, h4, h5, h6, h7) =
   .|. shiftL (fromIntegral h6) 32
   .|. fromIntegral h7
 
-data SHA256
-instance Hash SHA256 where
-  type Plaintext SHA256 = [Vector Word32]
-  type Hashtext SHA256 = Integer
-  name = "SHA256"
-  blockSize = 64
-  impl = Implementation
-    { hash = mergeHashValues . foldl hashChunk (0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19)
-    , parsePlaintext = padMessage
-    , renderHashtext = padByteString 64 . BS.pack . fmap (fromIntegral . ord) . ($"") . showHex
-    }
+sha256 :: ByteString -> ByteString
+sha256 = integerToByteStringBE 32 . mergeHashValues . foldl hashChunk (0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19) . padMessage

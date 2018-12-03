@@ -1,15 +1,11 @@
-module Final.Hash.SHA1 where
+module Final.Hash.SHA1 (sha1) where
 
-import Numeric (showHex)
-
-import Data.Char (ord)
 import Data.Word
 import Data.Bits
-import qualified Data.ByteString.Lazy as BS
+import Data.ByteString.Lazy (ByteString)
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V
 
-import Final.Hash
 import Final.Utility.ByteString
 
 type HashValues = (Word32, Word32, Word32, Word32, Word32)
@@ -43,14 +39,5 @@ mergeHashValues (h0, h1, h2, h3, h4) =
   .|. shiftL (fromIntegral h3) 32
   .|. fromIntegral h4
 
-data SHA1
-instance Hash SHA1 where
-  type Plaintext SHA1 = [Vector Word32]
-  type Hashtext SHA1 = Integer
-  name = "SHA1"
-  blockSize = 40
-  impl = Implementation
-    { hash = mergeHashValues . foldl hashChunk (0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0)
-    , parsePlaintext = padMessage
-    , renderHashtext = padByteString 40 . BS.pack . fmap (fromIntegral . ord) . ($"") . showHex
-    }
+sha1 :: ByteString -> ByteString
+sha1 = integerToByteStringBE 20 . mergeHashValues . foldl hashChunk (0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0) . padMessage

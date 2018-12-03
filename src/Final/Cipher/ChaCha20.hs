@@ -1,11 +1,9 @@
 module Final.Cipher.ChaCha20 where
 
 import Control.Exception.Safe
-import Control.Arrow (first)
 
 import Data.Word
 import Data.Bits
--- import Data.Binary
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 import Data.Vector (Vector, (!))
@@ -13,12 +11,7 @@ import qualified Data.Vector as V
 
 import System.Endian (toBE32)
 
-import Final.Cipher
 import Final.Utility.ByteString
-
--- instance Binary a => Binary (Vector a) where
---   put = put . V.toList
---   get = V.fromList <$> get
 
 quarterRound :: (Word32, Word32, Word32, Word32) -> (Word32, Word32, Word32, Word32)
 quarterRound (a, b, c, d) = (a'', b'''', c'', d'''')
@@ -142,25 +135,3 @@ chaCha20Poly1305UnAEAD key' nonce' (ciphertext', tag) aad = do
   pure $ if tag == tag'
          then Just plaintext
          else Nothing
-
-data ChaCha20
-instance Cipher ChaCha20 where
-  type EncryptionKey ChaCha20 = Vector Word32
-  type DecryptionKey ChaCha20 = Vector Word32
-  type Plaintext ChaCha20 = [[Word8]]
-  type Ciphertext ChaCha20 = [[Word8]]
-  name = "ChaCha20"
-  impl = Implementation
-    { encrypt = \k -> chaChaEncrypt k 0 [0, 0, 0] -- TODO: Increment nonce
-    , decrypt = \k -> chaChaEncrypt k 0 [0, 0, 0]
-    , generateDecryptionKey = first (V.fromList . unpackWord32LE) . flip randomByteString 32
-    , deriveEncryptionKey = id
-    , parseEncryptionKey = chaChaParseKey
-    , renderEncryptionKey = chaChaRenderKey
-    , parseDecryptionKey = chaChaParseKey
-    , renderDecryptionKey = chaChaRenderKey
-    , parsePlaintext = chaChaParseMessage
-    , renderPlaintext = chaChaRenderMessage
-    , parseCiphertext = chaChaParseMessage
-    , renderCiphertext = chaChaRenderMessage
-    }
