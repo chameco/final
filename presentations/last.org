@@ -3,14 +3,33 @@
 #+options: date:nil timestamp:nil toc:nil num:nil
 #+reveal_root: https://cdn.jsdelivr.net/reveal.js/3.0.0/
 
-* Implementation
+* Thoughts on our implementation
+* The Good
+** Lots of algorithms
 - SHA-1, SHA256, HMAC
-- RSA, Elliptic-curve cryptography on Curve25519, ephemeral elliptic-curve Diffie-Hellman.
+- RSA, elliptic-curve cryptography on Curve25519, ephemeral elliptic-curve Diffie-Hellman.
 - ChaCha20 and Poly1305 AEAD
-* Time pressure
+** They work
+(at least for the test vectors in the RFCs)
+** They work together
+- We built a simple "echo" server that establishes a secure channel and reverses messages
+** Avoided using any weak cryptosystems
+- Didn't use SDES at all
+- RSA (not semantically secure) and SHA-1 avoided
+- Prefers SHA256-HMAC for MAC, ECDHE for key exchange, and ChaCha20-Poly1305 for encryption and verification
+* The Bad
+** Protocol is messy
 - Did practically all of the networking/protocol stuff on Sunday night
-- Didn't test very much if at all
-- Sacrificed extensibility of codebase
+- Initially aiming for TLS compatibility
+- Ran out of time, so settled for something that looks like TLS without some things that would be irritating to implement
+- Could probably make it work with TLS given another week of effort
+** Tenuous usability
+- Practically untested
+- It compiles, so no problem, right?
+* The Ugly
+** Codebase isn't what it could be
+- We made a lot of sacrifices in the final hours
+- Produced dead code during design that ended up being cut
 * Summary
 - More time would have helped =:(=
 - Group 13 broke our system =:|=
@@ -18,18 +37,23 @@
 * Analysis of Group 11's implementation
 * Starting off
 - Some difficulty getting the project running.
-- The project didn't specify Numpy version, and there were some missing functions (tested using Numpy 1.14.5)
-- Fortunately, with a few small changes we were able to get everything working
-* General comments
-- Every implementation for this project is vulnerable to side-channel attacks
-- Notably, 
-* Hashing and message authentication
+- The project didn't have a =requirements.txt= or otherwise specify Numpy version, and there were some missing functions (tested using Numpy 1.14.5)
+** It worked out
+- Fortunately, with a few small changes to the code we were able to get everything running
+* Choice of cryptosystems
+** Hashing and message authentication
 - SHA-1 is broken in practice (https://shattered.io)
-- Uses HMAC for message authentication, which prevents length extension attacks.
-* Key exchange 
+- Uses HMAC for message authentication, which prevents length extension attacks on SHA-1
+** Key exchange 
 - Supports RSA and Blum-Goldwasser
-- Partial implementation of ECC, although I think 
-* Symmetric encryption
+- Partial implementation of ECC, although it is unused
+** Secure channel
+- Uses SDES
+* Potential issues
+** Side-channel attacks
+- Python natively supports big integers
+  - These are susceptible to timing attacks (leaks information about size of RSA parameters)
+** SDES
 - SDES provides no security, and is the only supported algorithm for symmetric encryption
 - SDES is applied to a string of bytes by simply encrypting each byte - this is essentially just a Caesar cipher
 - Since there are predictable bytes of plaintext, we can trivially brute-force to obtain the key for any intercepted exchange

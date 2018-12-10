@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Group 10 Post-Mortem</title>
+<meta name="author" content="(Samuel Breese and Jordan Alligood)"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/reveal.js/3.0.0/css/reveal.css"/>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/reveal.js/3.0.0/css/theme/moon.css" id="theme"/>
+
+
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'https://cdn.jsdelivr.net/reveal.js/3.0.0/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide"><h1 class="title">Group 10 Post-Mortem</h1><h2 class="author">Samuel Breese and Jordan Alligood</h2>
+</section>
+
+<section>
+<section id="slide-sec-">
+<h2 id="org1f54632">Thoughts on our implementation</h2>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="orgcc21674">The Good</h2>
+<div class="outline-text-2" id="text-orgcc21674">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org5b0083d">Lots of algorithms</h3>
+<ul>
+<li>SHA-1, SHA256, HMAC</li>
+<li>RSA, elliptic-curve cryptography on Curve25519, ephemeral elliptic-curve Diffie-Hellman.</li>
+<li>ChaCha20 and Poly1305 AEAD</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="orgc2c8fdd">They work</h3>
+<p>
+(at least for the test vectors in the RFCs)
+</p>
+</section>
+<section id="slide-sec-">
+<h3 id="org3e82e69">They work together</h3>
+<ul>
+<li>We built a simple "echo" server that establishes a secure channel and reverses messages</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="org06e6000">Avoided using any weak cryptosystems</h3>
+<ul>
+<li>Didn't use SDES at all</li>
+<li>RSA (not semantically secure) and SHA-1 avoided</li>
+<li>Prefers SHA256-HMAC for MAC, ECDHE for key exchange, and ChaCha20-Poly1305 for encryption and verification</li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="orgbb33d57">The Bad</h2>
+<div class="outline-text-2" id="text-orgbb33d57">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="orgef5ee09">Protocol is messy</h3>
+<ul>
+<li>Did practically all of the networking/protocol stuff on Sunday night</li>
+<li>Initially aiming for TLS compatibility</li>
+<li>Ran out of time, so settled for something that looks like TLS without some things that would be irritating to implement</li>
+<li>Could probably make it work with TLS given another week of effort</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="orgfb9c909">Tenuous usability</h3>
+<ul>
+<li>Practically untested</li>
+<li>It compiles, so no problem, right?</li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org0d07e8e">The Ugly</h2>
+<div class="outline-text-2" id="text-org0d07e8e">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org73ce76d">Codebase isn't what it could be</h3>
+<ul>
+<li>We made a lot of sacrifices in the final hours</li>
+<li>Produced dead code during design that ended up being cut</li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org5382fc9">Summary</h2>
+<ul>
+<li>More time would have helped <code>:(</code></li>
+<li>Group 13 broke our system <code>:|</code></li>
+<li>But it was fun <code>:)</code></li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org2a33f4e">Analysis of Group 11's implementation</h2>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org164907a">Starting off</h2>
+<ul>
+<li>Some difficulty getting the project running.</li>
+<li>The project didn't have a <code>requirements.txt</code> or otherwise specify Numpy version, and there were some missing functions (tested using Numpy 1.14.5)</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="org7c35fca">It worked out</h3>
+<ul>
+<li>Fortunately, with a few small changes to the code we were able to get everything running</li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org8ee82bf">Choice of cryptosystems</h2>
+<div class="outline-text-2" id="text-org8ee82bf">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="orgb526fd3">Hashing and message authentication</h3>
+<ul>
+<li>SHA-1 is broken in practice (<a href="https://shattered.io">https://shattered.io</a>)</li>
+<li>Uses HMAC for message authentication, which prevents length extension attacks on SHA-1</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="org3064536">Key exchange</h3>
+<ul>
+<li>Supports RSA and Blum-Goldwasser</li>
+<li>Partial implementation of ECC, although it is unused</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="orgb26e8b0">Secure channel</h3>
+<ul>
+<li>Uses SDES</li>
+
+</ul>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org2837c94">Potential issues</h2>
+<div class="outline-text-2" id="text-org2837c94">
+</div>
+</section>
+<section id="slide-sec-">
+<h3 id="org6a38e28">Side-channel attacks</h3>
+<ul>
+<li>Python natively supports big integers
+<ul>
+<li>These are susceptible to timing attacks (leaks information about size of RSA parameters)</li>
+
+</ul></li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="orgdd4b761">SDES</h3>
+<ul>
+<li>SDES provides no security, and is the only supported algorithm for symmetric encryption</li>
+<li>SDES is applied to a string of bytes by simply encrypting each byte - this is essentially just a Caesar cipher</li>
+<li>Since there are predictable bytes of plaintext, we can trivially brute-force to obtain the key for any intercepted exchange
+(For example, the bytes used to indicate message type in <code>PythonClasses/Constants.py</code>)</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="orgc7cc7a4">Breaking SDES</h3>
+<div class="org-src-container">
+
+<pre  class="src src-python"><span style="color: #a1db00;">from</span> PythonClasses.DES_Class <span style="color: #a1db00;">import</span> DES
+
+<span style="color: #a1db00;">def</span> <span style="color: #ffd700;">encrypt_sdes</span>(key, plaintext):
+    <span style="color: #ff8700;">sdes</span> = DES()
+    <span style="color: #ff8700;">sdes.init_key</span> = key
+    <span style="color: #a1db00;">return</span> sdes.encrypt(plaintext)
+
+<span style="color: #a1db00;">def</span> <span style="color: #ffd700;">solve_sdes</span>(plaintext, ciphertext):
+    <span style="color: #ff8700;">sdes</span> = DES()
+    <span style="color: #a1db00;">return</span> [key <span style="color: #a1db00;">for</span> key <span style="color: #a1db00;">in</span> <span style="color: #d18aff;">range</span>(0, 2**<span style="color: #d18aff;">len</span>(sdes.tab_key_init_P))
+            <span style="color: #a1db00;">if</span> encrypt_sdes(key, plaintext) == ciphertext]
+</pre>
+</div>
+</section>
+</section>
+<section>
+<section id="slide-sec-">
+<h2 id="org5b2ea7d">Questions?</h2>
+</section>
+</section>
+</div>
+</div>
+<script src="https://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/head.min.js"></script>
+<script src="https://cdn.jsdelivr.net/reveal.js/3.0.0/js/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 'c',
+rollingLinks: false,
+keyboard: true,
+overview: true,
+
+theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+transitionSpeed: 'default',
+multiplex: {
+    secret: '', // null if client
+    id: '', // id, obtained from socket.io server
+    url: '' // Location of socket.io server
+},
+
+// Optional libraries used to extend on reveal.js
+dependencies: [
+ { src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+ { src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+ { src: 'https://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
+});
+</script>
+</body>
+</html>
