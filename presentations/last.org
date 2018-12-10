@@ -2,6 +2,7 @@
 #+author: Samuel Breese and Jordan Alligood
 #+options: date:nil timestamp:nil toc:nil num:nil
 #+reveal_root: https://cdn.jsdelivr.net/reveal.js/3.0.0/
+#+reveal_theme: black
 
 * Thoughts on our implementation
 * The Good
@@ -21,7 +22,7 @@
 ** Protocol is messy
 - Did practically all of the networking/protocol stuff on Sunday night
 - Initially aiming for TLS compatibility
-- Ran out of time, so settled for something that looks like TLS without some things that would be irritating to implement
+- Ran out of time, so settled for something that looks like TLS without some stuff that would be irritating to implement
 - Could probably make it work with TLS given another week of effort
 ** Tenuous usability
 - Practically untested
@@ -30,8 +31,9 @@
 ** Codebase isn't what it could be
 - We made a lot of sacrifices in the final hours
 - Produced dead code during design that ended up being cut
+** We didn't sleep for three days
 * Summary
-- More time would have helped =:(=
+- There are things we could have improved, given more time =:(=
 - Group 13 broke our system =:|=
 - But it was fun =:)=
 * Analysis of Group 11's implementation
@@ -46,16 +48,19 @@
 - Uses HMAC for message authentication, which prevents length extension attacks on SHA-1
 ** Key exchange 
 - Supports RSA and Blum-Goldwasser
-- Partial implementation of ECC, although it is unused
+- Partial implementation of ECC, we weren't able to get this working
 ** Secure channel
-- Uses SDES
-* Potential issues
+- Uses SDES =:(=
+- Looks like some work was done to support full DES, but we weren't able to run it
+* Protocol
 ** Side-channel attacks
 - Python natively supports big integers
-  - These are susceptible to timing attacks (leaks information about size of RSA parameters)
+- MACs compared with ~!=~
+- These are susceptible to timing attacks (leaks information about size of RSA parameters)
+- Need to be very careful to avoid this and maintain constant-time execution
 ** SDES
 - SDES provides no security, and is the only supported algorithm for symmetric encryption
-- SDES is applied to a string of bytes by simply encrypting each byte - this is essentially just a Caesar cipher
+- SDES is applied to a string of bytes by encrypting each byte - this is just a substitution cipher
 - Since there are predictable bytes of plaintext, we can trivially brute-force to obtain the key for any intercepted exchange
   (For example, the bytes used to indicate message type in =PythonClasses/Constants.py=)
 ** Breaking SDES
@@ -72,4 +77,11 @@ def solve_sdes(plaintext, ciphertext):
     return [key for key in range(0, 2**len(sdes.tab_key_init_P))
             if encrypt_sdes(key, plaintext) == ciphertext]
 #+end_src
+** Semantic security
+- RSA is used for key exchange by default
+- Blum-Goldwasser is supported and working
+** Forward secrecy
+- Test program provided regenerates keys each execution, providing forward secrecy
+- This might not be feasible in production due to the cost of generating RSA keys
+- Ephemeral Diffie-Hellman would probably be a better option
 * Questions?

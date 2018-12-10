@@ -9,7 +9,7 @@
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/reveal.js/3.0.0/css/reveal.css"/>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/reveal.js/3.0.0/css/theme/moon.css" id="theme"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/reveal.js/3.0.0/css/theme/black.css" id="theme"/>
 
 
 <!-- If the query includes 'print-pdf', include the PDF print sheet -->
@@ -31,17 +31,17 @@
 
 <section>
 <section id="slide-sec-">
-<h2 id="org1f54632">Thoughts on our implementation</h2>
+<h2 id="org4dd9104">Thoughts on our implementation</h2>
 </section>
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="orgcc21674">The Good</h2>
-<div class="outline-text-2" id="text-orgcc21674">
+<h2 id="orgcdb077a">The Good</h2>
+<div class="outline-text-2" id="text-orgcdb077a">
 </div>
 </section>
 <section id="slide-sec-">
-<h3 id="org5b0083d">Lots of algorithms</h3>
+<h3 id="org767f6d6">Lots of algorithms</h3>
 <ul>
 <li>SHA-1, SHA256, HMAC</li>
 <li>RSA, elliptic-curve cryptography on Curve25519, ephemeral elliptic-curve Diffie-Hellman.</li>
@@ -50,20 +50,20 @@
 </ul>
 </section>
 <section id="slide-sec-">
-<h3 id="orgc2c8fdd">They work</h3>
+<h3 id="orgf980c01">They work</h3>
 <p>
 (at least for the test vectors in the RFCs)
 </p>
 </section>
 <section id="slide-sec-">
-<h3 id="org3e82e69">They work together</h3>
+<h3 id="org2200538">They work together</h3>
 <ul>
 <li>We built a simple "echo" server that establishes a secure channel and reverses messages</li>
 
 </ul>
 </section>
 <section id="slide-sec-">
-<h3 id="org06e6000">Avoided using any weak cryptosystems</h3>
+<h3 id="org6a4fa52">Avoided using any weak cryptosystems</h3>
 <ul>
 <li>Didn't use SDES at all</li>
 <li>RSA (not semantically secure) and SHA-1 avoided</li>
@@ -74,22 +74,22 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="orgbb33d57">The Bad</h2>
-<div class="outline-text-2" id="text-orgbb33d57">
+<h2 id="orgadc4c28">The Bad</h2>
+<div class="outline-text-2" id="text-orgadc4c28">
 </div>
 </section>
 <section id="slide-sec-">
-<h3 id="orgef5ee09">Protocol is messy</h3>
+<h3 id="orgafee180">Protocol is messy</h3>
 <ul>
 <li>Did practically all of the networking/protocol stuff on Sunday night</li>
 <li>Initially aiming for TLS compatibility</li>
-<li>Ran out of time, so settled for something that looks like TLS without some things that would be irritating to implement</li>
+<li>Ran out of time, so settled for something that looks like TLS without some stuff that would be irritating to implement</li>
 <li>Could probably make it work with TLS given another week of effort</li>
 
 </ul>
 </section>
 <section id="slide-sec-">
-<h3 id="orgfb9c909">Tenuous usability</h3>
+<h3 id="org8ea911e">Tenuous usability</h3>
 <ul>
 <li>Practically untested</li>
 <li>It compiles, so no problem, right?</li>
@@ -99,24 +99,27 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org0d07e8e">The Ugly</h2>
-<div class="outline-text-2" id="text-org0d07e8e">
+<h2 id="org2a185d1">The Ugly</h2>
+<div class="outline-text-2" id="text-org2a185d1">
 </div>
 </section>
 <section id="slide-sec-">
-<h3 id="org73ce76d">Codebase isn't what it could be</h3>
+<h3 id="orge2ec8e6">Codebase isn't what it could be</h3>
 <ul>
 <li>We made a lot of sacrifices in the final hours</li>
 <li>Produced dead code during design that ended up being cut</li>
 
 </ul>
 </section>
+<section id="slide-sec-">
+<h3 id="org012c81a">We didn't sleep for three days</h3>
+</section>
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org5382fc9">Summary</h2>
+<h2 id="orgd03c57c">Summary</h2>
 <ul>
-<li>More time would have helped <code>:(</code></li>
+<li>There are things we could have improved, given more time <code>:(</code></li>
 <li>Group 13 broke our system <code>:|</code></li>
 <li>But it was fun <code>:)</code></li>
 
@@ -125,12 +128,12 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org2a33f4e">Analysis of Group 11's implementation</h2>
+<h2 id="org26bbfde">Analysis of Group 11's implementation</h2>
 </section>
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org164907a">Starting off</h2>
+<h2 id="org96821b8">Starting off</h2>
 <ul>
 <li>Some difficulty getting the project running.</li>
 <li>The project didn't have a <code>requirements.txt</code> or otherwise specify Numpy version, and there were some missing functions (tested using Numpy 1.14.5)</li>
@@ -138,7 +141,7 @@
 </ul>
 </section>
 <section id="slide-sec-">
-<h3 id="org7c35fca">It worked out</h3>
+<h3 id="org288ca82">It worked out</h3>
 <ul>
 <li>Fortunately, with a few small changes to the code we were able to get everything running</li>
 
@@ -147,12 +150,12 @@
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org8ee82bf">Choice of cryptosystems</h2>
-<div class="outline-text-2" id="text-org8ee82bf">
+<h2 id="orgfe76ce3">Choice of cryptosystems</h2>
+<div class="outline-text-2" id="text-orgfe76ce3">
 </div>
 </section>
 <section id="slide-sec-">
-<h3 id="orgb526fd3">Hashing and message authentication</h3>
+<h3 id="orga0c9b64">Hashing and message authentication</h3>
 <ul>
 <li>SHA-1 is broken in practice (<a href="https://shattered.io">https://shattered.io</a>)</li>
 <li>Uses HMAC for message authentication, which prevents length extension attacks on SHA-1</li>
@@ -160,50 +163,50 @@
 </ul>
 </section>
 <section id="slide-sec-">
-<h3 id="org3064536">Key exchange</h3>
+<h3 id="org9670544">Key exchange</h3>
 <ul>
 <li>Supports RSA and Blum-Goldwasser</li>
-<li>Partial implementation of ECC, although it is unused</li>
+<li>Partial implementation of ECC, we weren't able to get this working</li>
 
 </ul>
 </section>
 <section id="slide-sec-">
-<h3 id="orgb26e8b0">Secure channel</h3>
+<h3 id="org80e18a8">Secure channel</h3>
 <ul>
-<li>Uses SDES</li>
+<li>Uses SDES <code>:(</code></li>
+<li>Looks like some work was done to support full DES, but we weren't able to run it</li>
 
 </ul>
 </section>
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org2837c94">Potential issues</h2>
-<div class="outline-text-2" id="text-org2837c94">
+<h2 id="orgf4334da">Protocol</h2>
+<div class="outline-text-2" id="text-orgf4334da">
 </div>
 </section>
 <section id="slide-sec-">
-<h3 id="org6a38e28">Side-channel attacks</h3>
+<h3 id="orgd62e391">Side-channel attacks</h3>
 <ul>
-<li>Python natively supports big integers
-<ul>
+<li>Python natively supports big integers</li>
+<li>MACs compared with <code>!=</code></li>
 <li>These are susceptible to timing attacks (leaks information about size of RSA parameters)</li>
-
-</ul></li>
+<li>Need to be very careful to avoid this and maintain constant-time execution</li>
 
 </ul>
 </section>
 <section id="slide-sec-">
-<h3 id="orgdd4b761">SDES</h3>
+<h3 id="org19a23ad">SDES</h3>
 <ul>
 <li>SDES provides no security, and is the only supported algorithm for symmetric encryption</li>
-<li>SDES is applied to a string of bytes by simply encrypting each byte - this is essentially just a Caesar cipher</li>
+<li>SDES is applied to a string of bytes by encrypting each byte - this is just a substitution cipher</li>
 <li>Since there are predictable bytes of plaintext, we can trivially brute-force to obtain the key for any intercepted exchange
 (For example, the bytes used to indicate message type in <code>PythonClasses/Constants.py</code>)</li>
 
 </ul>
 </section>
 <section id="slide-sec-">
-<h3 id="orgc7cc7a4">Breaking SDES</h3>
+<h3 id="org76d1c85">Breaking SDES</h3>
 <div class="org-src-container">
 
 <pre  class="src src-python"><span style="color: #a1db00;">from</span> PythonClasses.DES_Class <span style="color: #a1db00;">import</span> DES
@@ -220,10 +223,27 @@
 </pre>
 </div>
 </section>
+<section id="slide-sec-">
+<h3 id="org2b4a8ec">Semantic security</h3>
+<ul>
+<li>RSA is used for key exchange by default</li>
+<li>Blum-Goldwasser is supported and working</li>
+
+</ul>
+</section>
+<section id="slide-sec-">
+<h3 id="org7fbdfad">Forward secrecy</h3>
+<ul>
+<li>Test program provided regenerates keys each execution, providing forward secrecy</li>
+<li>This might not be feasible in production due to the cost of generating RSA keys</li>
+<li>Ephemeral Diffie-Hellman would probably be a better option</li>
+
+</ul>
+</section>
 </section>
 <section>
 <section id="slide-sec-">
-<h2 id="org5b2ea7d">Questions?</h2>
+<h2 id="org14448ad">Questions?</h2>
 </section>
 </section>
 </div>
